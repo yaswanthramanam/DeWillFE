@@ -1,7 +1,8 @@
 import React from "react";
 import Box from "@mui/material/Box";
 import Container from "@mui/material/Container";
-import Devil from '../../assets/Devil.png';
+import Devil from '../../assets/Devil2.png';
+import Angel from '../../assets/Angel.png';
 import { CssBaseline, Typography } from "@mui/material";
 import DevilBody from '../../assets/BodyLogo.png';
 import Slogan from '../../assets/Slogan2.png';
@@ -13,7 +14,7 @@ function Body() {
             <Box
                 sx={{
                     bgcolor: 'transparent',
-                    backgroundImage: `url(${Devil})`,
+                    backgroundImage: `url(${Angel})`,
                     backgroundPosition: 'left',
                     backgroundRepeat: 'no-repeat',
                     backgroundSize: 'contain',
@@ -45,7 +46,7 @@ function Body() {
                             position: 'relative', 
                             zIndex: 1,
                             paddingTop: '40vh',
-                            paddingLeft: "14vw",
+                            paddingLeft: "30vw",
                             fontWeight: 'bold',
                             textShadow: '2px 2px 4px rgba(0, 0, 0, 0.7)'
                         }} 
