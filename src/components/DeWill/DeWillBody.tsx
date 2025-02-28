@@ -51,6 +51,17 @@ interface RecipientDetails {
     percentage: number;
 }
 
+// Create an interface for error messages
+interface RecipientErrors {
+    addr?: string;
+    firstName?: string;
+    lastName?: string;
+    primaryEmail?: string;
+    secondaryEmail?: string;
+    age?: string;
+    percentage?: string;
+}
+
 const DeWillBody = () => {
     const [open, setOpen] = useState(false);
     const [recipientOpen, setRecipientOpen] = useState(false);
@@ -73,28 +84,27 @@ const DeWillBody = () => {
         percentage: 0
     });
 
-
-
-
     const [willDetails, setWillDetails] = useState<{
         text: string;
         stakingInterest: boolean;
         allocations: Allocation[];
         totalPercentage: number;
         error: string;
+        recipients: RecipientDetails[];
     }>({
         text: "",
         stakingInterest: false,
         allocations: [],
         totalPercentage: 0,
-        error: ""
+        error: "",
+        recipients: []
     });
 
-    const [errors, setErrors] = useState<Partial<RecipientDetails>>({});
-
+    // Change the type of errors state to match the error interface
+    const [errors, setErrors] = useState<RecipientErrors>({});
 
     const validateInputs = () => {
-        const newErrors: Partial<Record<keyof RecipientDetails, string>> = {};
+        const newErrors: RecipientErrors = {};
 
         if (!recipientDetails.addr || recipientDetails.addr.length < 7 || recipientDetails.addr.length > 100) {
             newErrors.addr = "Wallet address must be between 7 and 100 characters.";
@@ -107,6 +117,7 @@ const DeWillBody = () => {
         if (!recipientDetails.lastName || recipientDetails.lastName.length > 30) {
             newErrors.lastName = "Last name is required and must be less than 30 characters.";
         }
+        
         if (!recipientDetails.age || recipientDetails.age <= 0) {
             newErrors.age = "Age is required and must be a positive number.";
         }
@@ -128,13 +139,43 @@ const DeWillBody = () => {
                 newErrors.secondaryEmail = "Secondary email must be different from the primary email.";
             }
         }
-        console.log(newErrors);
+        
+        if (recipientDetails.percentage <= 0 || recipientDetails.percentage > 100) {
+            newErrors.percentage = "Percentage must be greater than 0 and less than or equal to 100.";
+        }
+        
+        setErrors(newErrors);
+        return Object.keys(newErrors).length === 0;
     }
 
     const handleSaveRecipient = () => {
-        validateInputs();
-        if (true) {
-            console.log("Valid data:", recipientDetails);
+        if (validateInputs()) {
+            // Add the recipient to the will's recipients list
+            const updatedWillDetails = {
+                ...willDetails,
+                recipients: [...willDetails.recipients, {...recipientDetails}],
+                allocations: [...willDetails.allocations, {
+                    recipient: recipientDetails.addr,
+                    percentage: recipientDetails.percentage
+                }]
+            };
+            
+            setWillDetails(updatedWillDetails);
+            
+            // Reset the recipient form
+            setRecipientDetails({
+                addr: "",
+                firstName: "",
+                lastName: "",
+                primaryEmail: "",
+                secondaryEmail: "",
+                currency: Currency.Sonic,
+                country: Country.India,
+                age: 0,
+                gender: Gender.Male,
+                percentage: 0
+            });
+            
             setRecipientOpen(false);
         }
     };
@@ -148,11 +189,8 @@ const DeWillBody = () => {
         setWillDetails({ ...willDetails, allocations: updatedAllocations });
     };
 
-    const handleAddAllocation = () => {
-        setWillDetails((prev) => ({
-            ...prev,
-            allocations: [...prev.allocations, { recipient: "", percentage: 0 }]
-        }));
+    const handleAddRecipientClick = () => {
+        setRecipientOpen(true);
     };
 
     const handleSaveWill = () => {
@@ -165,6 +203,7 @@ const DeWillBody = () => {
 
         setWillDetails({ ...willDetails, error: "" });
         console.log("Saving Will:", willDetails);
+        setOpen(false);
     };
 
     return (
@@ -186,7 +225,6 @@ const DeWillBody = () => {
                     alignItems: 'center',
                     justifyContent: 'center',
                 }}
-
             >
                 <Box
                     sx={{
@@ -219,57 +257,118 @@ const DeWillBody = () => {
                         <AddIcon sx={{ mr: 1 }} />
                         Create Will
                     </Fab>
-
-                    <Fab
-                        variant="extended"
-                        onClick={() => setRecipientOpen(true)}
-                        sx={{ bgcolor: 'black', color: 'white', fontWeight: 'bold' }}
-                    >
-                        <AddIcon sx={{ mr: 1 }} />
-                        Add Recipient
-                    </Fab>
                 </Box>
 
-
-
-                <Dialog open={open} onClose={() => setOpen(false)} fullWidth>
+                {/* Create Will Dialog */}
+                <Dialog open={open} onClose={() => setOpen(false)} fullWidth maxWidth="md">
                     <DialogTitle>Create Will</DialogTitle>
                     <DialogContent>
-                        <TextField fullWidth label="Will Details" multiline rows={4} value={willDetails.text}
-                            onChange={(e) => setWillDetails({ ...willDetails, text: e.target.value })} sx={{ mb: 2 }} />
-                        <FormControlLabel control={<Checkbox checked={willDetails.stakingInterest}
-                            onChange={(e) => setWillDetails({ ...willDetails, stakingInterest: e.target.checked })} />}
-                            label="Interested in Staking" />
-                        {willDetails.allocations.map((alloc, index) => (
-                            <Box key={index} sx={{ display: 'flex', alignItems: 'center', gap: 2, mb: 2 }}>
-                                <TextField fullWidth label="Recipient Address" value={alloc.recipient}
-                                    onChange={(e) => handleAllocationChange(index, 'recipient', e.target.value)} />
-                                <TextField fullWidth label="Percentage" type="number" value={alloc.percentage}
-                                    onChange={(e) => handleAllocationChange(index, 'percentage', e.target.value)} />
+                        <TextField 
+                            fullWidth 
+                            label="Will Details" 
+                            multiline 
+                            rows={4} 
+                            value={willDetails.text}
+                            onChange={(e) => setWillDetails({ ...willDetails, text: e.target.value })} 
+                            sx={{ mb: 2, mt: 2 }} 
+                        />
+                        
+                        <FormControlLabel 
+                            control={
+                                <Checkbox 
+                                    checked={willDetails.stakingInterest}
+                                    onChange={(e) => setWillDetails({ ...willDetails, stakingInterest: e.target.checked })} 
+                                />
+                            }
+                            label="Interested in Staking" 
+                        />
+                        
+                        <Box sx={{ mt: 3, mb: 2 }}>
+                            <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 2 }}>
+                                <h3 style={{ margin: 0 }}>Recipients</h3>
+                                <Button 
+                                    onClick={handleAddRecipientClick} 
+                                    variant="contained" 
+                                    startIcon={<AddIcon />}
+                                >
+                                    Add Recipient
+                                </Button>
                             </Box>
-                        ))}
-                        <Button onClick={handleAddAllocation} variant="outlined">Add Allocation</Button>
-                        {willDetails.error && <p style={{ color: 'red' }}>{willDetails.error}</p>}
+                            
+                            {willDetails.recipients.length === 0 ? (
+                                <Box sx={{ textAlign: 'center', py: 2, bgcolor: '#f5f5f5', borderRadius: 1 }}>
+                                    No recipients added yet. Click "Add Recipient" to get started.
+                                </Box>
+                            ) : (
+                                <Box>
+                                    {willDetails.recipients.map((recipient, index) => (
+                                        <Box key={index} sx={{ 
+                                            mb: 2, 
+                                            p: 2, 
+                                            border: '1px solid #e0e0e0', 
+                                            borderRadius: 1,
+                                            display: 'flex',
+                                            justifyContent: 'space-between'
+                                        }}>
+                                            <Box>
+                                                <strong>{recipient.firstName} {recipient.lastName}</strong>
+                                                <p style={{ margin: '5px 0' }}>Address: {recipient.addr}</p>
+                                                <p style={{ margin: '5px 0' }}>Email: {recipient.primaryEmail}</p>
+                                            </Box>
+                                            <Box sx={{ minWidth: '100px' }}>
+                                                <TextField
+                                                    label="Percentage"
+                                                    type="number"
+                                                    value={willDetails.allocations[index]?.percentage || 0}
+                                                    onChange={(e) => handleAllocationChange(index, 'percentage', e.target.value)}
+                                                    fullWidth
+                                                    InputProps={{
+                                                        endAdornment: <span>%</span>,
+                                                    }}
+                                                />
+                                            </Box>
+                                        </Box>
+                                    ))}
+                                    <Box sx={{ textAlign: 'right', fontWeight: 'bold' }}>
+                                        Total: {willDetails.allocations.reduce((sum, alloc) => sum + alloc.percentage, 0)}%
+                                    </Box>
+                                </Box>
+                            )}
+                        </Box>
+                        
+                        {willDetails.error && (
+                            <p style={{ color: 'red' }}>{willDetails.error}</p>
+                        )}
                     </DialogContent>
                     <DialogActions>
                         <Button onClick={() => setOpen(false)}>Cancel</Button>
-                        <Button onClick={handleSaveWill} variant="contained" color="primary">Save Will</Button>
+                        <Button 
+                            onClick={handleSaveWill} 
+                            variant="contained" 
+                            color="primary"
+                            disabled={willDetails.recipients.length === 0}
+                        >
+                            Save Will
+                        </Button>
                     </DialogActions>
                 </Dialog>
 
+                {/* Add Recipient Dialog */}
                 <Dialog open={recipientOpen} onClose={() => setRecipientOpen(false)} fullWidth>
                     <DialogTitle>Add Recipient</DialogTitle>
                     <DialogContent>
                         <TextField
-                            fullWidth label="Wallet Address"
+                            fullWidth 
+                            label="Wallet Address"
                             value={recipientDetails.addr}
                             onChange={(e) => setRecipientDetails({ ...recipientDetails, addr: e.target.value })}
-                            sx={{ mb: 2 }}
+                            sx={{ mb: 2, mt: 2 }}
                             error={!!errors.addr}
                             helperText={errors.addr}
                         />
                         <TextField
-                            fullWidth label="First Name"
+                            fullWidth 
+                            label="First Name"
                             value={recipientDetails.firstName}
                             onChange={(e) => setRecipientDetails({ ...recipientDetails, firstName: e.target.value })}
                             sx={{ mb: 2 }}
@@ -277,7 +376,8 @@ const DeWillBody = () => {
                             helperText={errors.firstName}
                         />
                         <TextField
-                            fullWidth label="Last Name"
+                            fullWidth 
+                            label="Last Name"
                             value={recipientDetails.lastName}
                             onChange={(e) => setRecipientDetails({ ...recipientDetails, lastName: e.target.value })}
                             sx={{ mb: 2 }}
@@ -285,7 +385,8 @@ const DeWillBody = () => {
                             helperText={errors.lastName}
                         />
                         <TextField
-                            fullWidth label="Primary Email"
+                            fullWidth 
+                            label="Primary Email"
                             value={recipientDetails.primaryEmail}
                             onChange={(e) => setRecipientDetails({ ...recipientDetails, primaryEmail: e.target.value })}
                             sx={{ mb: 2 }}
@@ -293,7 +394,8 @@ const DeWillBody = () => {
                             helperText={errors.primaryEmail}
                         />
                         <TextField
-                            fullWidth label="Secondary Email"
+                            fullWidth 
+                            label="Secondary Email"
                             value={recipientDetails.secondaryEmail}
                             onChange={(e) => setRecipientDetails({ ...recipientDetails, secondaryEmail: e.target.value })}
                             sx={{ mb: 2 }}
@@ -301,7 +403,8 @@ const DeWillBody = () => {
                             helperText={errors.secondaryEmail}
                         />
                         <TextField
-                            fullWidth label="Age"
+                            fullWidth 
+                            label="Age"
                             value={recipientDetails.age}
                             onChange={(e) => {
                                 const value = e.target.value;
@@ -312,10 +415,62 @@ const DeWillBody = () => {
                             error={!!errors.age}
                             helperText={errors.age}
                         />
+                        <TextField
+                            fullWidth 
+                            label="Allocation Percentage"
+                            value={recipientDetails.percentage}
+                            onChange={(e) => {
+                                const value = e.target.value;
+                                setRecipientDetails({ ...recipientDetails, percentage: value ? Number(value) : 0 });
+                            }}
+                            type="number"
+                            sx={{ mb: 2 }}
+                            error={!!errors.percentage}
+                            helperText={errors.percentage}
+                            InputProps={{
+                                endAdornment: <span>%</span>,
+                            }}
+                        />
+                        <FormControl fullWidth sx={{ mb: 2 }}>
+                            <InputLabel>Country</InputLabel>
+                            <Select
+                                value={recipientDetails.country}
+                                label="Country"
+                                onChange={(e) => setRecipientDetails({ ...recipientDetails, country: e.target.value })}
+                            >
+                                {Object.values(Country).map((country) => (
+                                    <MenuItem key={country} value={country}>{country}</MenuItem>
+                                ))}
+                            </Select>
+                        </FormControl>
+                        <FormControl fullWidth sx={{ mb: 2 }}>
+                            <InputLabel>Gender</InputLabel>
+                            <Select
+                                value={recipientDetails.gender}
+                                label="Gender"
+                                onChange={(e) => setRecipientDetails({ ...recipientDetails, gender: e.target.value })}
+                            >
+                                {Object.values(Gender).map((gender) => (
+                                    <MenuItem key={gender} value={gender}>{gender}</MenuItem>
+                                ))}
+                            </Select>
+                        </FormControl>
+                        <FormControl fullWidth sx={{ mb: 2 }}>
+                            <InputLabel>Currency</InputLabel>
+                            <Select
+                                value={recipientDetails.currency}
+                                label="Currency"
+                                onChange={(e) => setRecipientDetails({ ...recipientDetails, currency: e.target.value })}
+                            >
+                                {Object.values(Currency).map((currency) => (
+                                    <MenuItem key={currency} value={currency}>{currency}</MenuItem>
+                                ))}
+                            </Select>
+                        </FormControl>
                     </DialogContent>
                     <DialogActions>
                         <Button onClick={() => setRecipientOpen(false)}>Cancel</Button>
-                        <Button variant="contained" color="primary">
+                        <Button onClick={handleSaveRecipient} variant="contained" color="primary">
                             Save Recipient
                         </Button>
                     </DialogActions>
@@ -324,6 +479,5 @@ const DeWillBody = () => {
         </div>
     );
 };
-
 
 export default DeWillBody;
