@@ -1,4 +1,5 @@
 import React, { useState } from 'react';
+import { ethers } from "ethers";
 import {
     TextField, Dialog, DialogActions, DialogContent, DialogTitle,
     Button, FormControl, InputLabel, Select, MenuItem,
@@ -6,13 +7,18 @@ import {
 } from '@mui/material';
 import AddIcon from '@mui/icons-material/Add';
 import Devil from '../../assets/Devil2.png';
-import Angel from '../../assets/Angel.png';
+// import Angel from '../../assets/Angel.png';
+// import CONTRACT_ABI from '../../assets/abi.json';
 
-import { ethers } from "ethers";
-import CONTRACT_ABI from '../../assets/abi.json';
+//sonic contract address
+const CONTRACT_ADDRESS = {
+    sonic: "0x117808aDc1a8950638F14cE2ca57EeBCA1D2E9A6",
+    ethereum: "",
+    near: "",
 
-const CONTRACT_ADDRESS = "0x117808aDc1a8950638F14cE2ca57EeBCA1D2E9A6";
+};
 
+//available countries to use dewill offchain transactions
 const Country = {
     India: "India",
     UnitedStates: "United States",
@@ -26,25 +32,28 @@ const Country = {
     EU: "EU",
 };
 
+//Gender of the recipient/ parent
 const Gender = {
     Male: "Male",
     Female: "Female",
     Others: "Others",
 };
 
-const Currency = {
+// Token being transferred in dewill
+const Token = {
     ETH: "ETH",
     Sonic: "Sonic",
     Near: "Near",
 };
 
+// Create an interface for recipients
 interface RecipientDetails {
     addr: string;
     firstName: string;
     lastName: string;
     primaryEmail: string;
     secondaryEmail?: string;
-    currency: string;
+    token: string;
     country: string;
     age?: number;
     gender?: string;
@@ -63,7 +72,7 @@ interface RecipientErrors {
 }
 
 const DeWillBody = () => {
-    const [open, setOpen] = useState(false);
+    const [openWill, setWillOpen] = useState(false);
     const [recipientOpen, setRecipientOpen] = useState(false);
 
     interface Allocation {
@@ -77,7 +86,7 @@ const DeWillBody = () => {
         lastName: "",
         primaryEmail: "",
         secondaryEmail: "",
-        currency: Currency.Sonic,
+        token: Token.Sonic,
         country: Country.India,
         age: 0,
         gender: Gender.Male,
@@ -169,7 +178,7 @@ const DeWillBody = () => {
                 lastName: "",
                 primaryEmail: "",
                 secondaryEmail: "",
-                currency: Currency.Sonic,
+                token: Token.Sonic,
                 country: Country.India,
                 age: 0,
                 gender: Gender.Male,
@@ -203,7 +212,7 @@ const DeWillBody = () => {
 
         setWillDetails({ ...willDetails, error: "" });
         console.log("Saving Will:", willDetails);
-        setOpen(false);
+        setWillOpen(false);
     };
 
     return (
@@ -251,7 +260,7 @@ const DeWillBody = () => {
                 >
                     <Fab
                         variant="extended"
-                        onClick={() => setOpen(true)}
+                        onClick={() => setWillOpen(true)}
                         sx={{ bgcolor: 'black', color: 'white', fontWeight: 'bold' }}
                     >
                         <AddIcon sx={{ mr: 1 }} />
@@ -260,7 +269,7 @@ const DeWillBody = () => {
                 </Box>
 
                 {/* Create Will Dialog */}
-                <Dialog open={open} onClose={() => setOpen(false)} fullWidth maxWidth="md">
+                <Dialog open={openWill} onClose={() => setWillOpen(false)} fullWidth maxWidth="md">
                     <DialogTitle>Create Will</DialogTitle>
                     <DialogContent>
                         <TextField 
@@ -341,7 +350,7 @@ const DeWillBody = () => {
                         )}
                     </DialogContent>
                     <DialogActions>
-                        <Button onClick={() => setOpen(false)}>Cancel</Button>
+                        <Button onClick={() => setWillOpen(false)}>Cancel</Button>
                         <Button 
                             onClick={handleSaveWill} 
                             variant="contained" 
@@ -456,14 +465,14 @@ const DeWillBody = () => {
                             </Select>
                         </FormControl>
                         <FormControl fullWidth sx={{ mb: 2 }}>
-                            <InputLabel>Currency</InputLabel>
+                            <InputLabel>Token</InputLabel>
                             <Select
-                                value={recipientDetails.currency}
-                                label="Currency"
-                                onChange={(e) => setRecipientDetails({ ...recipientDetails, currency: e.target.value })}
+                                value={recipientDetails.token}
+                                label="Token"
+                                onChange={(e) => setRecipientDetails({ ...recipientDetails, token: e.target.value })}
                             >
-                                {Object.values(Currency).map((currency) => (
-                                    <MenuItem key={currency} value={currency}>{currency}</MenuItem>
+                                {Object.values(Token).map((token) => (
+                                    <MenuItem key={token} value={token}>{token}</MenuItem>
                                 ))}
                             </Select>
                         </FormControl>
