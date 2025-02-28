@@ -15,7 +15,6 @@ const CONTRACT_ADDRESS = {
     sonic: "0x117808aDc1a8950638F14cE2ca57EeBCA1D2E9A6",
     ethereum: "",
     near: "",
-
 };
 
 //available countries to use dewill offchain transactions
@@ -71,46 +70,52 @@ interface RecipientErrors {
     percentage?: string;
 }
 
+interface Allocation {
+    recipient: string;
+    percentage: number;
+}
+
+
+interface Will {
+    text: string;
+    stakingInterest: boolean;
+    allocations: Allocation[];
+    totalPercentage: number;
+    error: string;
+    recipients: RecipientDetails[];
+}
+
+const [openWill, setWillOpen] = useState(false);
+const [recipientOpen, setRecipientOpen] = useState(false);
+
+
+const [recipientDetails, setRecipientDetails] = useState<RecipientDetails>({
+    addr: "",
+    firstName: "",
+    lastName: "",
+    primaryEmail: "",
+    secondaryEmail: "",
+    token: Token.Sonic,
+    country: Country.India,
+    age: 0,
+    gender: Gender.Male,
+    percentage: 0
+});
+
+const [willDetails, setWillDetails] = useState<Will>({
+    text: "",
+    stakingInterest: false,
+    allocations: [],
+    totalPercentage: 0,
+    error: "",
+    recipients: []
+});
+
+// Change the type of errors state to match the error interface
+const [errors, setErrors] = useState<RecipientErrors>({});
+
 const DeWillBody = () => {
-    const [openWill, setWillOpen] = useState(false);
-    const [recipientOpen, setRecipientOpen] = useState(false);
 
-    interface Allocation {
-        recipient: string;
-        percentage: number;
-    }
-
-    const [recipientDetails, setRecipientDetails] = useState<RecipientDetails>({
-        addr: "",
-        firstName: "",
-        lastName: "",
-        primaryEmail: "",
-        secondaryEmail: "",
-        token: Token.Sonic,
-        country: Country.India,
-        age: 0,
-        gender: Gender.Male,
-        percentage: 0
-    });
-
-    const [willDetails, setWillDetails] = useState<{
-        text: string;
-        stakingInterest: boolean;
-        allocations: Allocation[];
-        totalPercentage: number;
-        error: string;
-        recipients: RecipientDetails[];
-    }>({
-        text: "",
-        stakingInterest: false,
-        allocations: [],
-        totalPercentage: 0,
-        error: "",
-        recipients: []
-    });
-
-    // Change the type of errors state to match the error interface
-    const [errors, setErrors] = useState<RecipientErrors>({});
 
     const validateInputs = () => {
         const newErrors: RecipientErrors = {};
@@ -126,7 +131,7 @@ const DeWillBody = () => {
         if (!recipientDetails.lastName || recipientDetails.lastName.length > 30) {
             newErrors.lastName = "Last name is required and must be less than 30 characters.";
         }
-        
+
         if (!recipientDetails.age || recipientDetails.age <= 0) {
             newErrors.age = "Age is required and must be a positive number.";
         }
@@ -148,11 +153,11 @@ const DeWillBody = () => {
                 newErrors.secondaryEmail = "Secondary email must be different from the primary email.";
             }
         }
-        
+
         if (recipientDetails.percentage <= 0 || recipientDetails.percentage > 100) {
             newErrors.percentage = "Percentage must be greater than 0 and less than or equal to 100.";
         }
-        
+
         setErrors(newErrors);
         return Object.keys(newErrors).length === 0;
     }
@@ -162,15 +167,15 @@ const DeWillBody = () => {
             // Add the recipient to the will's recipients list
             const updatedWillDetails = {
                 ...willDetails,
-                recipients: [...willDetails.recipients, {...recipientDetails}],
+                recipients: [...willDetails.recipients, { ...recipientDetails }],
                 allocations: [...willDetails.allocations, {
                     recipient: recipientDetails.addr,
                     percentage: recipientDetails.percentage
                 }]
             };
-            
+
             setWillDetails(updatedWillDetails);
-            
+
             // Reset the recipient form
             setRecipientDetails({
                 addr: "",
@@ -184,7 +189,7 @@ const DeWillBody = () => {
                 gender: Gender.Male,
                 percentage: 0
             });
-            
+
             setRecipientOpen(false);
         }
     };
@@ -213,7 +218,27 @@ const DeWillBody = () => {
         setWillDetails({ ...willDetails, error: "" });
         console.log("Saving Will:", willDetails);
         setWillOpen(false);
+
+        // connectWallet();
     };
+
+    const onCancel = () => {
+        setWillOpen(false);
+        setRecipientDetails({
+            addr: "",
+            firstName: "",
+            lastName: "",
+            primaryEmail: "",
+            secondaryEmail: "",
+            token: Token.Sonic,
+            country: Country.India,
+            age: 0,
+            gender: Gender.Male,
+            percentage: 0
+        });
+        setWillDetails({...willDetails, recipients: []});
+
+    }
 
     return (
         <div>
@@ -261,7 +286,7 @@ const DeWillBody = () => {
                     <Fab
                         variant="extended"
                         onClick={() => setWillOpen(true)}
-                        sx={{ bgcolor: 'black', color: 'white', fontWeight: 'bold' }}
+                        sx={{ bgcolor: 'black', color: 'white', fontWeight: 'bold' }} disabled={willDetails.recipients.length !== 0}
                     >
                         <AddIcon sx={{ mr: 1 }} />
                         Create Will
@@ -272,38 +297,38 @@ const DeWillBody = () => {
                 <Dialog open={openWill} onClose={() => setWillOpen(false)} fullWidth maxWidth="md">
                     <DialogTitle>Create Will</DialogTitle>
                     <DialogContent>
-                        <TextField 
-                            fullWidth 
-                            label="Will Details" 
-                            multiline 
-                            rows={4} 
+                        <TextField
+                            fullWidth
+                            label="Will Details"
+                            multiline
+                            rows={1}
                             value={willDetails.text}
-                            onChange={(e) => setWillDetails({ ...willDetails, text: e.target.value })} 
-                            sx={{ mb: 2, mt: 2 }} 
+                            onChange={(e) => setWillDetails({ ...willDetails, text: e.target.value })}
+                            sx={{ mb: 2, mt: 2 }}
                         />
-                        
-                        <FormControlLabel 
+
+                        <FormControlLabel
                             control={
-                                <Checkbox 
+                                <Checkbox
                                     checked={willDetails.stakingInterest}
-                                    onChange={(e) => setWillDetails({ ...willDetails, stakingInterest: e.target.checked })} 
+                                    onChange={(e) => setWillDetails({ ...willDetails, stakingInterest: e.target.checked })}
                                 />
                             }
-                            label="Interested in Staking" 
+                            label="Interested in Staking"
                         />
-                        
+
                         <Box sx={{ mt: 3, mb: 2 }}>
                             <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 2 }}>
                                 <h3 style={{ margin: 0 }}>Recipients</h3>
-                                <Button 
-                                    onClick={handleAddRecipientClick} 
-                                    variant="contained" 
+                                <Button
+                                    onClick={handleAddRecipientClick}
+                                    variant="contained"
                                     startIcon={<AddIcon />}
                                 >
                                     Add Recipient
                                 </Button>
                             </Box>
-                            
+
                             {willDetails.recipients.length === 0 ? (
                                 <Box sx={{ textAlign: 'center', py: 2, bgcolor: '#f5f5f5', borderRadius: 1 }}>
                                     No recipients added yet. Click "Add Recipient" to get started.
@@ -311,10 +336,10 @@ const DeWillBody = () => {
                             ) : (
                                 <Box>
                                     {willDetails.recipients.map((recipient, index) => (
-                                        <Box key={index} sx={{ 
-                                            mb: 2, 
-                                            p: 2, 
-                                            border: '1px solid #e0e0e0', 
+                                        <Box key={index} sx={{
+                                            mb: 2,
+                                            p: 2,
+                                            border: '1px solid #e0e0e0',
                                             borderRadius: 1,
                                             display: 'flex',
                                             justifyContent: 'space-between'
@@ -344,16 +369,16 @@ const DeWillBody = () => {
                                 </Box>
                             )}
                         </Box>
-                        
+
                         {willDetails.error && (
                             <p style={{ color: 'red' }}>{willDetails.error}</p>
                         )}
                     </DialogContent>
                     <DialogActions>
-                        <Button onClick={() => setWillOpen(false)}>Cancel</Button>
-                        <Button 
-                            onClick={handleSaveWill} 
-                            variant="contained" 
+                        <Button onClick={() => onCancel()}>Cancel</Button>
+                        <Button
+                            onClick={handleSaveWill}
+                            variant="contained"
                             color="primary"
                             disabled={willDetails.recipients.length === 0}
                         >
@@ -367,7 +392,7 @@ const DeWillBody = () => {
                     <DialogTitle>Add Recipient</DialogTitle>
                     <DialogContent>
                         <TextField
-                            fullWidth 
+                            fullWidth
                             label="Wallet Address"
                             value={recipientDetails.addr}
                             onChange={(e) => setRecipientDetails({ ...recipientDetails, addr: e.target.value })}
@@ -376,7 +401,7 @@ const DeWillBody = () => {
                             helperText={errors.addr}
                         />
                         <TextField
-                            fullWidth 
+                            fullWidth
                             label="First Name"
                             value={recipientDetails.firstName}
                             onChange={(e) => setRecipientDetails({ ...recipientDetails, firstName: e.target.value })}
@@ -385,7 +410,7 @@ const DeWillBody = () => {
                             helperText={errors.firstName}
                         />
                         <TextField
-                            fullWidth 
+                            fullWidth
                             label="Last Name"
                             value={recipientDetails.lastName}
                             onChange={(e) => setRecipientDetails({ ...recipientDetails, lastName: e.target.value })}
@@ -394,7 +419,7 @@ const DeWillBody = () => {
                             helperText={errors.lastName}
                         />
                         <TextField
-                            fullWidth 
+                            fullWidth
                             label="Primary Email"
                             value={recipientDetails.primaryEmail}
                             onChange={(e) => setRecipientDetails({ ...recipientDetails, primaryEmail: e.target.value })}
@@ -403,7 +428,7 @@ const DeWillBody = () => {
                             helperText={errors.primaryEmail}
                         />
                         <TextField
-                            fullWidth 
+                            fullWidth
                             label="Secondary Email"
                             value={recipientDetails.secondaryEmail}
                             onChange={(e) => setRecipientDetails({ ...recipientDetails, secondaryEmail: e.target.value })}
@@ -412,7 +437,7 @@ const DeWillBody = () => {
                             helperText={errors.secondaryEmail}
                         />
                         <TextField
-                            fullWidth 
+                            fullWidth
                             label="Age"
                             value={recipientDetails.age}
                             onChange={(e) => {
@@ -425,7 +450,7 @@ const DeWillBody = () => {
                             helperText={errors.age}
                         />
                         <TextField
-                            fullWidth 
+                            fullWidth
                             label="Allocation Percentage"
                             value={recipientDetails.percentage}
                             onChange={(e) => {
