@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { ethers } from "ethers";
+import { BrowserProvider, Eip1193Provider, ethers } from "ethers";
 import {
     TextField, Dialog, DialogActions, DialogContent, DialogTitle,
     Button, FormControl, InputLabel, Select, MenuItem,
@@ -8,13 +8,13 @@ import {
 import AddIcon from '@mui/icons-material/Add';
 import Devil from '../../assets/Devil2.png';
 // import Angel from '../../assets/Angel.png';
-// import CONTRACT_ABI from '../../assets/abi.json';
+import CONTRACT_ABI from '../../assets/abi.json';
 
-//sonic contract address
 const CONTRACT_ADDRESS = {
     sonic: "0x117808aDc1a8950638F14cE2ca57EeBCA1D2E9A6",
     ethereum: "",
     near: "",
+    electronium: "0x0Ae3b3c65D1242EE40DcDD3f8440C2424abA3789"
 };
 
 //available countries to use dewill offchain transactions
@@ -43,6 +43,7 @@ const Token = {
     ETH: "ETH",
     Sonic: "Sonic",
     Near: "Near",
+    Electronium: "Electronium"
 };
 
 // Create an interface for recipients
@@ -85,36 +86,38 @@ interface Will {
     recipients: RecipientDetails[];
 }
 
-const [openWill, setWillOpen] = useState(false);
-const [recipientOpen, setRecipientOpen] = useState(false);
-
-
-const [recipientDetails, setRecipientDetails] = useState<RecipientDetails>({
-    addr: "",
-    firstName: "",
-    lastName: "",
-    primaryEmail: "",
-    secondaryEmail: "",
-    token: Token.Sonic,
-    country: Country.India,
-    age: 0,
-    gender: Gender.Male,
-    percentage: 0
-});
-
-const [willDetails, setWillDetails] = useState<Will>({
-    text: "",
-    stakingInterest: false,
-    allocations: [],
-    totalPercentage: 0,
-    error: "",
-    recipients: []
-});
-
-// Change the type of errors state to match the error interface
-const [errors, setErrors] = useState<RecipientErrors>({});
 
 const DeWillBody = () => {
+
+    const [openWill, setWillOpen] = useState(false);
+    const [recipientOpen, setRecipientOpen] = useState(false);
+
+    const WalletToRecipients: Map<string, RecipientDetails[]>= new Map();
+
+
+    const [recipientDetails, setRecipientDetails] = useState<RecipientDetails>({
+        addr: "",
+        firstName: "",
+        lastName: "",
+        primaryEmail: "",
+        secondaryEmail: "",
+        token: Token.Sonic,
+        country: Country.India,
+        age: 0,
+        gender: Gender.Male,
+        percentage: 0
+    });
+
+    const [willDetails, setWillDetails] = useState<Will>({
+        text: "",
+        stakingInterest: false,
+        allocations: [],
+        totalPercentage: 0,
+        error: "",
+        recipients: []
+    });
+
+    const [errors, setErrors] = useState<RecipientErrors>({});
 
 
     const validateInputs = () => {
@@ -183,7 +186,7 @@ const DeWillBody = () => {
                 lastName: "",
                 primaryEmail: "",
                 secondaryEmail: "",
-                token: Token.Sonic,
+                token: Token.Electronium,
                 country: Country.India,
                 age: 0,
                 gender: Gender.Male,
@@ -217,9 +220,9 @@ const DeWillBody = () => {
 
         setWillDetails({ ...willDetails, error: "" });
         console.log("Saving Will:", willDetails);
-        setWillOpen(false);
+        // setWillOpen(false);
 
-        // connectWallet();
+        sendWillToContract();
     };
 
     const onCancel = () => {
@@ -230,15 +233,71 @@ const DeWillBody = () => {
             lastName: "",
             primaryEmail: "",
             secondaryEmail: "",
-            token: Token.Sonic,
+            token: Token.Electronium,
             country: Country.India,
             age: 0,
             gender: Gender.Male,
             percentage: 0
         });
-        setWillDetails({...willDetails, recipients: []});
+        setWillDetails({ ...willDetails, recipients: [] });
 
     }
+
+    const sendWillToContract = async (): Promise<void> => {
+        console.log("Entered MetaMask impl");
+        if (!window.ethereum) {
+          alert("MetaMask not installed!");
+          return;
+        }
+        try {
+          // Connect to MetaMask
+          const provider = new ethers.BrowserProvider(window.ethereum);
+          await provider.send("eth_requestAccounts", []);
+          const signer = await provider.getSigner();
+          console.log("Signer:", await signer.getAddress());
+      
+          // Electroneum Testnet contract
+          const contract = new ethers.Contract(
+            CONTRACT_ADDRESS.electronium, // "0x2e401CBF264F41D233f4b88EBcD0a70e6ECAE52E"
+            CONTRACT_ABI,
+            signer
+          );
+          console.log("Contract:", contract);
+      
+          // Map frontend data to contract enums
+          const recipientsFormatted = willDetails.recipients.map(r => ({
+            addr: r.addr,
+            firstName: r.firstName,
+            lastName: r.lastName,
+            primaryEmail: r.primaryEmail,
+            secondaryEmail: r.secondaryEmail || "",
+            currency: { "Sonic": 0, "ETH": 1, "Near": 2 }[r.token] || 0, // Map Token enum
+            country: { "India": 0, "United States": 1, "United Kingdom": 2, "Japan": 3, "Canada": 4, "Australia": 5, "China": 6, "Russia": 7, "Switzerland": 8, "EU": 9 }[r.country] || 0, // Map Country enum
+            age: r.age || 0,
+            gender: { "Male": 0, "Female": 1, "Others": 2 }[r.gender || "Male"] || 0, // Map Gender enum
+            percentage: r.percentage
+          }));
+      
+          // Send recipients
+          const tx1 = await contract.addRecipients(recipientsFormatted, { gasLimit: 500000 });
+          console.log("Recipients Tx Hash:", tx1.hash);
+          await tx1.wait();
+          console.log("Recipients confirmed!");
+      
+          // Set staking
+          const tx2 = await contract.setStaking(willDetails.stakingInterest, { gasLimit: 100000 });
+          console.log("Staking Tx Hash:", tx2.hash);
+          await tx2.wait();
+          console.log("Staking confirmed!");
+
+          WalletToRecipients.set(await signer.getAddress(),  await contract.getRecipients());
+      
+        } catch (error) {
+          console.error("Contract call failed:", error);
+        }
+      };
+
+
 
     return (
         <div>
