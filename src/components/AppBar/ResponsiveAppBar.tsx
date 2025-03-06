@@ -1,5 +1,5 @@
 import * as React from 'react';
-import { BrowserProvider, Eip1193Provider, ethers } from 'ethers';
+import { BrowserProvider,  Eip1193Provider, ethers } from 'ethers';
 import AppBar from '@mui/material/AppBar';
 import Box from '@mui/material/Box';
 import Toolbar from '@mui/material/Toolbar';
@@ -10,12 +10,11 @@ import Container from '@mui/material/Container';
 import Avatar from '@mui/material/Avatar';
 import Tooltip from '@mui/material/Tooltip';
 import MenuItem from '@mui/material/MenuItem';
-import Devil from './../../assets/Devil.png';
 import { useNavigate } from 'react-router-dom';
 
 declare global {
   interface Window {
-    ethereum?:  Eip1193Provider;
+    ethereum?: Eip1193Provider;
   }
 }
 
@@ -47,22 +46,17 @@ function ResponsiveAppBar() {
         const signer = await provider.getSigner();
         const address = await signer.getAddress();
 
-        console.log("session storage: ",  sessionStorage);
-
+        console.log("session storage: ", sessionStorage);
         console.log("Connected Wallet Address:", address);
 
         const network = await provider.getNetwork();
         const chainId = network.chainId.toString();
-
-        console.log("Connected ChainId :", chainId);
+        console.log("Connected ChainId:", chainId);
 
         sessionStorage.setItem("walletAddress", address);
+        setWalletAddress(address); // Update state
       } catch (error) {
         console.error("Wallet connection failed:", error);
-        const provider = new BrowserProvider(window.ethereum)
-        const signer = await provider.getSigner();
-        const address = await signer.getAddress();
-        console.log(address);
       }
     } else {
       alert("MetaMask is not installed. Please install it to use this feature.");
@@ -71,20 +65,16 @@ function ResponsiveAppBar() {
 
   function disconnectWallet(): void {
     setWalletAddress(null);
-  
     sessionStorage.removeItem("walletAddress");
     localStorage.removeItem("walletAddress");
-
     console.log("Wallet disconnected. Reconnect will require user action.");
   }
-  
-  
 
   return (
-    <AppBar>
+    <AppBar sx={{ bgcolor: '#000000' }}> {/* Changed to pure black */}
       <Container maxWidth="xl">
         <Toolbar disableGutters sx={{ display: 'flex', justifyContent: 'space-between' }}>
-          <img src={Devil} height="70px" />
+          {/* Removed <img src={Devil} height="70px" /> */}
           <Typography
             variant="h5"
             noWrap
@@ -94,27 +84,76 @@ function ResponsiveAppBar() {
               mr: 2,
               display: { xs: 'flex', md: 'none' },
               flexGrow: 1,
-              fontFamily: 'monospace',
+              fontFamily: 'Poppins, Inter, Roboto, sans-serif', // Fun, stylish font
               fontWeight: 700,
               letterSpacing: '.3rem',
-              color: 'inherit',
+              color: 'white', // Changed to white
               textDecoration: 'none',
+              textTransform: 'uppercase' // Added for bitte.ai style
             }}
           >
             DeWill
           </Typography>
           <Box sx={{ flexGrow: 1, display: { xs: 'none', md: 'flex' } }}>
             <MenuItem key="Home" onClick={() => navigate('/')}>
-              <Typography sx={{ textAlign: 'center' }}>Home</Typography>
+              <Typography sx={{ 
+                textAlign: 'center', 
+                fontFamily: 'Creepster, Roboto, sans-serif', 
+                fontWeight: 700, 
+                color: 'white', // White text
+                textTransform: 'uppercase',
+                '&:hover': { color: 'grey.300' } // Grey hover
+              }}>
+                Home
+              </Typography>
             </MenuItem>
             <MenuItem key="DE_Wills" onClick={() => navigate('/dewill')}>
-              <Typography sx={{ textAlign: 'center' }}>DE Wills</Typography>
+              <Typography sx={{ 
+                textAlign: 'center', 
+                fontFamily: 'Creepster, Roboto, sans-serif', 
+                fontWeight: 700, 
+                color: 'white',
+                textTransform: 'uppercase',
+                '&:hover': { color: 'grey.300' }
+              }}>
+                DE Will
+              </Typography>
             </MenuItem>
             <MenuItem key="FAQ" onClick={() => navigate('/faq')}>
-              <Typography sx={{ textAlign: 'center' }}>FAQ</Typography>
+              <Typography sx={{ 
+                textAlign: 'center', 
+                fontFamily: 'Creepster, Roboto, sans-serif', 
+                fontWeight: 700, 
+                color: 'white',
+                textTransform: 'uppercase',
+                '&:hover': { color: 'grey.300' }
+              }}>
+                FAQ
+              </Typography>
             </MenuItem>
             <MenuItem key="chat" onClick={() => navigate('/faq')}>
-              <Typography sx={{ textAlign: 'center' }}>Chat With An Angel</Typography>
+              <Typography sx={{ 
+                textAlign: 'center', 
+                fontFamily: 'Creepster, Roboto, sans-serif', 
+                fontWeight: 700, 
+                color: 'white',
+                textTransform: 'uppercase',
+                '&:hover': { color: 'grey.300' }
+              }}>
+                Chat With An Angel
+              </Typography>
+            </MenuItem>
+            <MenuItem key="redeem" onClick={() => navigate('/redeem')}>
+              <Typography sx={{ 
+                textAlign: 'center', 
+                fontFamily: 'Creepster, Roboto, sans-serif', 
+                fontWeight: 700, 
+                color: 'white',
+                textTransform: 'uppercase',
+                '&:hover': { color: 'grey.300' }
+              }}>
+                Redeem
+              </Typography>
             </MenuItem>
           </Box>
           <Box sx={{ flexGrow: 0 }}>
@@ -127,36 +166,59 @@ function ResponsiveAppBar() {
               sx={{ mt: '45px' }}
               id="menu-appbar"
               anchorEl={anchorElUser}
-              anchorOrigin={{
-                vertical: 'top',
-                horizontal: 'right',
-              }}
+              anchorOrigin={{ vertical: 'top', horizontal: 'right' }}
               keepMounted
-              transformOrigin={{
-                vertical: 'top',
-                horizontal: 'right',
-              }}
+              transformOrigin={{ vertical: 'top', horizontal: 'right' }}
               open={Boolean(anchorElUser)}
               onClose={handleCloseUserMenu}
             >
               {walletAddress ? (
                 <>
                   <MenuItem key="wallet">
-                    <Typography sx={{ textAlign: 'center' }}>
+                    <Typography sx={{ 
+                      textAlign: 'center', 
+                      fontFamily: 'Poppins, Inter, Roboto, sans-serif', 
+                      fontWeight: 500, 
+                      color: 'black'
+                    }}>
                       Connected: {walletAddress.slice(0, 6)}...{walletAddress.slice(-4)}
                     </Typography>
                   </MenuItem>
                   <MenuItem key="disconnect" onClick={disconnectWallet}>
-                    <Typography sx={{ textAlign: 'center' }}>Disconnect Wallet</Typography>
+                    <Typography sx={{ 
+                      textAlign: 'center', 
+                      fontFamily: 'Poppins, Inter, Roboto, sans-serif', 
+                      fontWeight: 500, 
+                      color: 'black',
+                      '&:hover': { color: 'grey.700' }
+                    }}>
+                      Disconnect Wallet
+                    </Typography>
                   </MenuItem>
                 </>
               ) : (
                 <MenuItem key="connect" onClick={connectWallet}>
-                  <Typography sx={{ textAlign: 'center' }}>Connect Wallet</Typography>
+                  <Typography sx={{ 
+                    textAlign: 'center', 
+                    fontFamily: 'Poppins, Inter, Roboto, sans-serif', 
+                    fontWeight: 500, 
+                    color: 'black',
+                    '&:hover': { color: 'grey.700' }
+                  }}>
+                    Connect Wallet
+                  </Typography>
                 </MenuItem>
               )}
               <MenuItem key="logout" onClick={disconnectWallet}>
-                <Typography sx={{ textAlign: 'center' }}>LogOut</Typography>
+                <Typography sx={{ 
+                  textAlign: 'center', 
+                  fontFamily: 'Poppins, Inter, Roboto, sans-serif', 
+                  fontWeight: 500, 
+                  color: 'black',
+                  '&:hover': { color: 'grey.700' }
+                }}>
+                  Logout
+                </Typography>
               </MenuItem>
             </Menu>
           </Box>

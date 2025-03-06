@@ -5,6 +5,7 @@ import { Routes, Route } from 'react-router-dom';
 import Home from './components/Home/Home'
 import FAQ from './components/FAQ/FAQ';
 import DeWill from './components/DeWill/DeWill';
+import Redeem from './components/Redeem/Redeem';
 
 function App() {
 
@@ -14,6 +15,7 @@ function App() {
                 <Route path="/" element={<Home />} />
                 <Route path="/faq" element={<FAQ />} />
                 <Route path="/dewill" element={<DeWill />} />
+                <Route path="/redeem" element={< Redeem/>} />
           </Routes>
     </div>
 

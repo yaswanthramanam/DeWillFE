@@ -50,64 +50,95 @@
       {
         "components": [
           {
-            "internalType": "address",
-            "name": "addr",
-            "type": "address"
-          },
-          {
             "internalType": "string",
-            "name": "firstName",
+            "name": "text",
             "type": "string"
           },
           {
-            "internalType": "string",
-            "name": "lastName",
-            "type": "string"
-          },
-          {
-            "internalType": "string",
-            "name": "primaryEmail",
-            "type": "string"
-          },
-          {
-            "internalType": "string",
-            "name": "secondaryEmail",
-            "type": "string"
-          },
-          {
-            "internalType": "enum DeWill.Currency",
-            "name": "currency",
-            "type": "uint8"
-          },
-          {
-            "internalType": "enum DeWill.Country",
-            "name": "country",
-            "type": "uint8"
-          },
-          {
-            "internalType": "uint256",
-            "name": "age",
-            "type": "uint256"
-          },
-          {
-            "internalType": "enum DeWill.Gender",
-            "name": "gender",
-            "type": "uint8"
-          },
-          {
-            "internalType": "uint256",
-            "name": "percentage",
-            "type": "uint256"
+            "components": [
+              {
+                "internalType": "address",
+                "name": "addr",
+                "type": "address"
+              },
+              {
+                "internalType": "string",
+                "name": "firstName",
+                "type": "string"
+              },
+              {
+                "internalType": "string",
+                "name": "lastName",
+                "type": "string"
+              },
+              {
+                "internalType": "string",
+                "name": "primaryEmail",
+                "type": "string"
+              },
+              {
+                "internalType": "string",
+                "name": "secondaryEmail",
+                "type": "string"
+              },
+              {
+                "internalType": "enum DeWill.Currency",
+                "name": "currency",
+                "type": "uint8"
+              },
+              {
+                "internalType": "enum DeWill.Country",
+                "name": "country",
+                "type": "uint8"
+              },
+              {
+                "internalType": "uint256",
+                "name": "age",
+                "type": "uint256"
+              },
+              {
+                "internalType": "enum DeWill.Gender",
+                "name": "gender",
+                "type": "uint8"
+              },
+              {
+                "internalType": "uint256",
+                "name": "percentage",
+                "type": "uint256"
+              }
+            ],
+            "internalType": "struct DeWill.Recipient[]",
+            "name": "recipients",
+            "type": "tuple[]"
           }
         ],
-        "internalType": "struct DeWill.Recipient[]",
-        "name": "_recipients",
-        "type": "tuple[]"
+        "internalType": "struct DeWill.Will",
+        "name": "_will",
+        "type": "tuple"
       }
     ],
     "name": "addRecipients",
     "outputs": [],
     "stateMutability": "nonpayable",
+    "type": "function"
+  },
+  {
+    "inputs": [
+      {
+        "internalType": "enum DeWill.Currency",
+        "name": "_currency",
+        "type": "uint8"
+      }
+    ],
+    "name": "getBalance",
+    "outputs": [
+      {
+        "internalType": "uint256",
+        "name": "",
+        "type": "uint256"
+      }
+    ],
+    "stateMutability": "view",
     "type": "function"
   },
   {
@@ -190,6 +221,83 @@
   },
   {
     "inputs": [],
+    "name": "getWill",
+    "outputs": [
+      {
+        "components": [
+          {
+            "internalType": "string",
+            "name": "text",
+            "type": "string"
+          },
+          {
+            "components": [
+              {
+                "internalType": "address",
+                "name": "addr",
+                "type": "address"
+              },
+              {
+                "internalType": "string",
+                "name": "firstName",
+                "type": "string"
+              },
+              {
+                "internalType": "string",
+                "name": "lastName",
+                "type": "string"
+              },
+              {
+                "internalType": "string",
+                "name": "primaryEmail",
+                "type": "string"
+              },
+              {
+                "internalType": "string",
+                "name": "secondaryEmail",
+                "type": "string"
+              },
+              {
+                "internalType": "enum DeWill.Currency",
+                "name": "currency",
+                "type": "uint8"
+              },
+              {
+                "internalType": "enum DeWill.Country",
+                "name": "country",
+                "type": "uint8"
+              },
+              {
+                "internalType": "uint256",
+                "name": "age",
+                "type": "uint256"
+              },
+              {
+                "internalType": "enum DeWill.Gender",
+                "name": "gender",
+                "type": "uint8"
+              },
+              {
+                "internalType": "uint256",
+                "name": "percentage",
+                "type": "uint256"
+              }
+            ],
+            "internalType": "struct DeWill.Recipient[]",
+            "name": "recipients",
+            "type": "tuple[]"
+          }
+        ],
+        "internalType": "struct DeWill.Will",
+        "name": "",
+        "type": "tuple"
+      }
+    ],
+    "stateMutability": "view",
+    "type": "function"
+  },
+  {
+    "inputs": [],
     "name": "optOut",
     "outputs": [],
     "stateMutability": "nonpayable",
@@ -206,6 +314,13 @@
       }
     ],
     "stateMutability": "view",
+    "type": "function"
+  },
+  {
+    "inputs": [],
+    "name": "removeRecipients",
+    "outputs": [],
+    "stateMutability": "nonpayable",
     "type": "function"
   },
   {
@@ -255,6 +370,24 @@
       }
     ],
     "name": "transferOwnership",
+    "outputs": [],
+    "stateMutability": "nonpayable",
+    "type": "function"
+  },
+  {
+    "inputs": [
+      {
+        "internalType": "enum DeWill.Currency",
+        "name": "_currency",
+        "type": "uint8"
+      },
+      {
+        "internalType": "uint256",
+        "name": "_balance",
+        "type": "uint256"
+      }
+    ],
+    "name": "updateBalance",
     "outputs": [],
     "stateMutability": "nonpayable",
     "type": "function"
