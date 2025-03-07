@@ -108,6 +108,7 @@ const SendBody = () => {
             newErrors.timestamp = "Timestamp is required";
         } else {
             const ts = new Date(timestamp).getTime() / 1000;
+            console.log(ts );
             if (isNaN(ts) || ts < Math.floor(Date.now() / 1000)) {
                 newErrors.timestamp = "Timestamp must be a valid future date";
             }

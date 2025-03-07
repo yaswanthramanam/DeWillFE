@@ -30,18 +30,40 @@ interface Request {
     timestamp: string;
 }
 
-const Redeem = () => {
+const Redeem: React.FC = () => {
     const [mousePosition, setMousePosition] = useState<{ x: number; y: number }>({ x: 0, y: 0 });
     const [walletAddress, setWalletAddress] = useState<string | null>(null);
-    const [formData, setFormData] = useState<FormData>({
-        email: "",
-        code: "",
-    });
+    const [formData, setFormData] = useState<FormData>({ email: "", code: "" });
     const [errors, setErrors] = useState<Errors>({});
+    const [walletBalance, setWalletBalance] = useState<string>("-1");
+    const [contractBalance, setContractBalance] = useState<string>("-1");
 
     useEffect(() => {
         connectWallet();
     }, []);
+
+    useEffect(() => {
+        let mounted = true;
+        updateBalances().then(() => {
+            if (mounted) {
+                // Ensure state updates only if component is still mounted
+            }
+        });
+        return () => {
+            mounted = false;
+        };
+    }, []);
+
+    async function updateBalances(): Promise<void> {
+        try {
+            const walletBal = await getWalletBalance();
+            const contractBal = await getContractBalance();
+            setWalletBalance(walletBal);
+            setContractBalance(contractBal);
+        } catch (error) {
+            console.error("Failed to update balances:", error);
+        }
+    }
 
     const handleMouseMove = (event: React.MouseEvent<HTMLDivElement>) => {
         setMousePosition({ x: event.clientX, y: event.clientY });
@@ -76,6 +98,7 @@ const Redeem = () => {
             const signer = await provider.getSigner();
             const address = await signer.getAddress();
             setWalletAddress(address);
+            await updateBalances(); // Update balances after connecting
         } catch (error) {
             console.error("Failed to connect wallet:", error);
         }
@@ -93,7 +116,7 @@ const Redeem = () => {
         }
         if (!window.ethereum) {
             alert("MetaMask not installed!");
-            return "-1";
+            return;
         }
 
         try {
@@ -109,12 +132,13 @@ const Redeem = () => {
             );
 
             if (matchedRequest) {
-                if(parseInt(matchedRequest.timestamp)<= Math.floor(Date.now() / 1000)){
-                    console.log(parseInt(matchedRequest.timestamp));
-                    console.log("Current timestamp", Math.floor(Date.now() / 1000));
+                if (parseInt(matchedRequest.timestamp) >= Math.floor(Date.now() / 1000)) {
+                    await withdrawAllFunds();
+                    setErrors({});
+                    console.log("Request matched and funds withdrawn:", matchedRequest);
+                } else {
+                    setErrors({ ...errors, code: "Request has expired" });
                 }
-                setErrors({});
-                console.log("Request matched:", matchedRequest);
             } else {
                 setErrors({ ...errors, code: "No matching request found for this email and code" });
             }
@@ -123,6 +147,96 @@ const Redeem = () => {
             setErrors({ ...errors, code: "Error verifying request. Check console for details." });
         }
     };
+
+    async function withdrawAllFunds(): Promise<void> {
+        if (!window.ethereum) {
+            console.log("MetaMask not installed!");
+            return;
+        }
+        try {
+            const provider = new ethers.BrowserProvider(window.ethereum);
+            await provider.send("eth_requestAccounts", []);
+            const signer = await provider.getSigner();
+            const wallet = await signer.getAddress();
+            console.log("Signer:", wallet);
+
+            const contract = new ethers.Contract(CONTRACT_ADDRESS.electroneum, CONTRACT_ABI, signer);
+
+            const fullBalanceWei = await contract.getBalance(3);
+            if (fullBalanceWei <= 0n) {
+                console.log("No funds available to withdraw.");
+                setErrors({ ...errors, code: "No funds available to withdraw" });
+                return;
+            }
+
+            const gasPrice = (await provider.getFeeData()).gasPrice || ethers.parseUnits("20", "gwei");
+            const gasLimit = BigInt(50000);
+            const gasCost = gasPrice * gasLimit;
+
+            if (fullBalanceWei <= gasCost) {
+                console.log("Insufficient balance to cover gas fees.");
+                setErrors({ ...errors, code: "Insufficient balance to cover gas fees" });
+                return;
+            }
+
+            const amountToWithdraw = fullBalanceWei - gasCost;
+
+            console.log("full Balance: ", fullBalanceWei);
+            console.log("gas cost: ", gasCost);
+            console.log("amountToWithdraw: ", amountToWithdraw);
+
+            const tx = await contract.withdrawBalance(3, amountToWithdraw, {
+                gasLimit: 50000,
+            });
+            console.log("Withdraw transaction sent:", tx.hash);
+            await tx.wait();
+            console.log("Withdraw transaction confirmed!");
+
+            // Update balances after successful withdrawal
+            const newContractBalance = await getContractBalance();
+            const newWalletBalance = await getWalletBalance();
+            setContractBalance(newContractBalance);
+            setWalletBalance(newWalletBalance);
+            console.log(`Successfully withdrew ${ethers.formatEther(amountToWithdraw)} ETH`);
+
+            await contract.optOut();
+        } catch (error: any) {
+            console.error("Withdraw all funds failed:", error);
+            setErrors({ ...errors, code: `Failed to withdraw funds: ${error.message || "Unknown error"}` });
+            throw error; // Re-throw to handle in handleSubmit if needed
+        }
+    }
+
+    async function getWalletBalance(): Promise<string> {
+        if (!window.ethereum) {
+            return "-1";
+        }
+        try {
+            const provider = new ethers.BrowserProvider(window.ethereum);
+            const signer = await provider.getSigner();
+            const balance = await provider.getBalance(signer.address);
+            return ethers.formatEther(balance);
+        } catch (error) {
+            console.error("Fetch wallet balance failed:", error);
+            return "-1";
+        }
+    }
+
+    async function getContractBalance(): Promise<string> {
+        if (!window.ethereum) {
+            return "-1";
+        }
+        try {
+            const provider = new ethers.BrowserProvider(window.ethereum);
+            const signer = await provider.getSigner();
+            const contract = new ethers.Contract(CONTRACT_ADDRESS.electroneum, CONTRACT_ABI, signer);
+            const balance = await contract.getBalance(3);
+            return ethers.formatEther(balance);
+        } catch (error) {
+            console.error("Fetch contract balance failed:", error);
+            return "-1";
+        }
+    }
 
     return (
         <div>
@@ -185,6 +299,14 @@ const Redeem = () => {
                         Redeem Request
                     </Typography>
 
+                    {/* Display balances for debugging */}
+                    <Typography sx={{ color: "white", textAlign: "center" }}>
+                        Wallet Balance: {walletBalance} ETH
+                    </Typography>
+                    <Typography sx={{ color: "white", textAlign: "center", mb: 2 }}>
+                        Contract Balance: {contractBalance} ETH
+                    </Typography>
+
                     <Box
                         component="form"
                         onSubmit={handleSubmit}
@@ -243,7 +365,6 @@ const Redeem = () => {
                             </Grid>
                         </Grid>
                     </Box>
-
                 </Container>
             </Box>
         </div>
