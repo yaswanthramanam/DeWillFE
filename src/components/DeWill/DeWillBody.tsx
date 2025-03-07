@@ -99,8 +99,17 @@ const DeWillBody = () => {
 
     const handleAllocationChange = (index: number, field: 'recipient' | 'percentage', value: string | number) => {
         const updatedAllocations = [...willDetails.allocations];
-        updatedAllocations[index] = { ...updatedAllocations[index], [field]: field === "percentage" ? Number(value) : value };
-        setWillDetails({ ...willDetails, allocations: updatedAllocations });
+        const updatedRecipients = [...willDetails.recipients];
+
+        if (field === "percentage") {
+            const newPercentage = Number(value);
+            updatedAllocations[index] = { ...updatedAllocations[index], percentage: newPercentage };
+            updatedRecipients[index] = { ...updatedRecipients[index], percentage: newPercentage };
+        } else {
+            updatedAllocations[index] = { ...updatedAllocations[index], [field]: String(value) };
+        }
+
+        setWillDetails({ ...willDetails, allocations: updatedAllocations, recipients: updatedRecipients });
     };
 
     const handleAddRecipientClick = () => setRecipientOpen(true);
@@ -268,7 +277,7 @@ const DeWillBody = () => {
             const gasLimit = 300000n;
             const gasCost = gasPrice * gasLimit;
             const gasCostInEth = Number(ethers.formatEther(gasCost));
-            const afterGasBalance = balanceInEth - gasCostInEth;
+            const afterGasBalance = balanceInEth - 2;
 
             if (afterGasBalance <= 0) {
                 console.log("Insufficient balance to cover gas fees.");
