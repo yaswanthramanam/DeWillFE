@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from "react";
 import Box from "@mui/material/Box";
 import Container from "@mui/material/Container";
-import { BrowserProvider, ethers } from "ethers";
+import { ethers } from "ethers";
 import {
     CssBaseline,
     Typography,
@@ -24,6 +24,7 @@ interface Errors {
     token?: string;
     email?: string;
     cause?: string;
+    timestamp?: string;
 }
 
 enum Cause {
@@ -39,7 +40,6 @@ const generateAIEmail = (recipient: string, cause: string, percentage: string, t
 const SendBody = () => {
     const [mousePosition, setMousePosition] = useState<{ x: number; y: number }>({ x: 0, y: 0 });
     const [balance, setBalance] = useState<string>("-1");
-    const [walletAddress, setWalletAddress] = useState<string | null>(null);
     const [willDetails, setWillDetails] = useState<Will>({
         text: "",
         stakingInterest: false,
@@ -48,12 +48,12 @@ const SendBody = () => {
         error: "",
         recipients: [],
     });
-    const [hasWill, setHasWill] = useState(false);
     const [recipient, setRecipient] = useState<string>("");
     const [percentage, setPercentage] = useState<string>("");
     const [token, setToken] = useState<string>(Token.Electroneum);
     const [email, setEmail] = useState<string>("");
     const [cause, setCause] = useState<string>("");
+    const [timestamp, setTimestamp] = useState<string>("");
     const [errors, setErrors] = useState<Errors>({});
 
     useEffect(() => {
@@ -77,7 +77,7 @@ const SendBody = () => {
     };
 
     const handleChange = (
-        field: "recipient" | "percentage" | "token" | "email" | "cause"
+        field: "recipient" | "percentage" | "token" | "email" | "cause" | "timestamp"
     ) => (
         event: SelectChangeEvent<string> | React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>
     ) => {
@@ -87,6 +87,7 @@ const SendBody = () => {
         else if (field === "token") setToken(value);
         else if (field === "email") setEmail(value);
         else if (field === "cause") setCause(value);
+        else if (field === "timestamp") setTimestamp(value);
         setErrors({ ...errors, [field]: "" });
     };
 
@@ -103,6 +104,14 @@ const SendBody = () => {
         }
         if (!token) newErrors.token = "Token is required";
         if (!cause) newErrors.cause = "Cause of transfer is required";
+        if (!timestamp) {
+            newErrors.timestamp = "Timestamp is required";
+        } else {
+            const ts = new Date(timestamp).getTime() / 1000;
+            if (isNaN(ts) || ts < Math.floor(Date.now() / 1000)) {
+                newErrors.timestamp = "Timestamp must be a valid future date";
+            }
+        }
         setErrors(newErrors);
         return Object.keys(newErrors).length === 0;
     };
@@ -129,8 +138,7 @@ const SendBody = () => {
             const provider = new ethers.BrowserProvider(window.ethereum);
             await provider.send("eth_requestAccounts", []);
             const signer = await provider.getSigner();
-            const address = await signer.getAddress();
-            setWalletAddress(address);
+
             const contract = new ethers.Contract(CONTRACT_ADDRESS.electroneum, CONTRACT_ABI, signer);
             const recipients = await contract.getRecipients();
             const will: Will = await contract.getWill();
@@ -155,7 +163,6 @@ const SendBody = () => {
                     stakingInterest: await contract.getStaking(),
                     text: will.text,
                 });
-                setHasWill(true);
             }
         } catch (error) {
             console.error("Failed to fetch will:", error);
@@ -190,20 +197,21 @@ const SendBody = () => {
                 return;
             }
 
-            const fiveYearsInSeconds = 5 * 365 * 24 * 60 * 60;
-            const timestamp = Math.floor(Date.now() / 1000) + fiveYearsInSeconds;
+            // Convert timestamp to blockchain format (seconds)
+            const blockchainTimestamp = Math.floor(new Date(timestamp).getTime() / 1000);
             const redemptionCode = `RECIPIENT_${selectedRecipient.addr.slice(0, 6)}`;
             const txRequest = await contract.addRequest(
                 selectedRecipient.primaryEmail,
                 redemptionCode,
                 Number(percentage),
                 cause,
-                timestamp,
+                blockchainTimestamp,
                 { gasLimit: 100000 }
             );
             console.log(`Request Tx Hash for ${selectedRecipient.addr}:`, txRequest.hash);
             await txRequest.wait();
             console.log(`Request confirmed for ${selectedRecipient.addr}!`);
+
             const serviceID = 'dewill';
             const templateID = 'dewill_template';
             const publicKey = 'utY0W0EPIytoPwfRZ';
@@ -221,11 +229,13 @@ const SendBody = () => {
 
             const response = await emailjs.send(serviceID, templateID, emailParams, publicKey);
             console.log("Email sent successfully:", response);
+
             setRecipient("");
             setPercentage("");
             setToken(Token.Electroneum);
             setEmail("");
             setCause("");
+            setTimestamp("");
             setErrors({});
         } catch (error) {
             console.error("Email sending or request addition failed:", error);
@@ -239,7 +249,7 @@ const SendBody = () => {
     };
 
     const handleGenerateAIEmail = () => {
-        if (!recipient || !percentage || !token || !cause) {
+        if (!recipient || !percentage || !token || !cause || !timestamp) {
             setErrors({
                 ...errors,
                 email: "Please fill all fields before generating an email",
@@ -454,6 +464,25 @@ const SendBody = () => {
                                             </Typography>
                                         )}
                                     </FormControl>
+                                </Grid>
+
+                                <Grid item xs={12}>
+                                    <TextField
+                                        fullWidth
+                                        label="Redemption Timestamp"
+                                        type="datetime-local"
+                                        value={timestamp}
+                                        onChange={handleChange("timestamp")}
+                                        slotProps={{
+                                            input: {
+                                                sx: { color: "white", bgcolor: "rgba(255, 255, 255, 0.1)" },
+                                            },
+                                        }}
+                                        sx={{ label: { color: "white" } }}
+                                        error={!!errors.timestamp}
+                                        helperText={errors.timestamp}
+                                        InputLabelProps={{ shrink: true }}
+                                    />
                                 </Grid>
 
                                 <Grid item xs={12}>

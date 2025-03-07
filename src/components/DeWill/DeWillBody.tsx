@@ -1,8 +1,7 @@
 import React, { useState, useEffect } from 'react';
-import { BrowserProvider, ethers } from "ethers";
+import {ethers } from "ethers";
 import { IconButton } from "@mui/material";
 import RefreshIcon from "@mui/icons-material/Refresh";
-import MailIcon from '@mui/icons-material/Mail';
 import RedeemIcon from '@mui/icons-material/Redeem';
 import AccountBalanceWalletIcon from '@mui/icons-material/AccountBalanceWallet';
 import {
@@ -36,7 +35,6 @@ const DeWillBody = () => {
     const [recipientOpen, setRecipientOpen] = useState(false);
     const [mousePosition, setMousePosition] = useState({ x: 0, y: 0 });
     const [hasWill, setHasWill] = useState(false);
-    const [walletAddress, setWalletAddress] = useState<string | null>(null);
     const [walletBalance, setWalletBalance] = useState<string>("-1"); // Wallet balance state
     const [contractBalance, setContractBalance] = useState<string>("-1"); // Contract balance state
     const WalletToRecipients: Map<string, RecipientDetails[]> = new Map();
@@ -136,14 +134,12 @@ const DeWillBody = () => {
             const provider = new ethers.BrowserProvider(window.ethereum);
             await provider.send("eth_requestAccounts", []);
             const signer = await provider.getSigner();
-            const address = await signer.getAddress();
-            setWalletAddress(address);
             const contract = new ethers.Contract(CONTRACT_ADDRESS.electroneum, CONTRACT_ABI, signer);
             const recipients = await contract.getRecipients();
             console.log("Hi..");
             const will: Will = await contract.getWill();
 
-            const formattedWill = JSON.parse(JSON.stringify(will, (key, value) =>
+            const formattedWill = JSON.parse(JSON.stringify(will, (_key, value) =>
                 typeof value === "bigint" ? value.toString() : value, 2));
 
             console.log(formattedWill);
@@ -273,8 +269,6 @@ const DeWillBody = () => {
                 gasPrice = BigInt(0);
             }
             const gasLimit = 300000n;
-            const gasCost = gasPrice * gasLimit;
-            const gasCostInEth = Number(ethers.formatEther(gasCost));
             const afterGasBalance = balanceInEth - 2;
 
             if (afterGasBalance <= 0) {

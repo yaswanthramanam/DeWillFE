@@ -1,5 +1,5 @@
 import * as React from 'react';
-import { BrowserProvider,  Eip1193Provider, ethers } from 'ethers';
+import { BrowserProvider,  Eip1193Provider } from 'ethers';
 import AppBar from '@mui/material/AppBar';
 import Box from '@mui/material/Box';
 import Toolbar from '@mui/material/Toolbar';

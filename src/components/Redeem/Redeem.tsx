@@ -1,4 +1,4 @@
-import React, { ReactNode } from "react";
+import _React, { ReactNode } from "react";
 import ResponsiveAppBar from "../AppBar/ResponsiveAppBar";
 import RedeemBody from './RedeemBody';
 import CssBaseline from "@mui/material/CssBaseline/CssBaseline";
