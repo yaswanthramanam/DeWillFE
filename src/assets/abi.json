@@ -48,6 +48,19 @@
   {
     "inputs": [
       {
+        "internalType": "enum DeWill.Currency",
+        "name": "_currency",
+        "type": "uint8"
+      }
+    ],
+    "name": "addBalance",
+    "outputs": [],
+    "stateMutability": "payable",
+    "type": "function"
+  },
+  {
+    "inputs": [
+      {
         "components": [
           {
             "internalType": "string",
@@ -383,11 +396,11 @@
       },
       {
         "internalType": "uint256",
-        "name": "_balance",
+        "name": "_amount",
         "type": "uint256"
       }
     ],
-    "name": "updateBalance",
+    "name": "withdrawBalance",
     "outputs": [],
     "stateMutability": "nonpayable",
     "type": "function"

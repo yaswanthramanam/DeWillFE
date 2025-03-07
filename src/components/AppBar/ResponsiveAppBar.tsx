@@ -143,7 +143,7 @@ function ResponsiveAppBar() {
                 Chat With An Angel
               </Typography>
             </MenuItem>
-            <MenuItem key="redeem" onClick={() => navigate('/redeem')}>
+            <MenuItem key="send" onClick={() => navigate('/send')}>
               <Typography sx={{ 
                 textAlign: 'center', 
                 fontFamily: 'Creepster, Roboto, sans-serif', 
@@ -152,7 +152,7 @@ function ResponsiveAppBar() {
                 textTransform: 'uppercase',
                 '&:hover': { color: 'grey.300' }
               }}>
-                Redeem
+                Send
               </Typography>
             </MenuItem>
           </Box>

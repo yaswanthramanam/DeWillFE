@@ -4,6 +4,7 @@ import { IconButton } from "@mui/material";
 import RefreshIcon from "@mui/icons-material/Refresh";
 import MailIcon from '@mui/icons-material/Mail';
 import RedeemIcon from '@mui/icons-material/Redeem';
+import AccountBalanceWalletIcon from '@mui/icons-material/AccountBalanceWallet';
 import {
     TextField, Dialog, DialogActions, DialogContent, DialogTitle,
     Button, FormControl, InputLabel, Select, MenuItem,
@@ -18,7 +19,7 @@ export const CONTRACT_ADDRESS = {
     sonic: "0x117808aDc1a8950638F14cE2ca57EeBCA1D2E9A6",
     ethereum: "",
     near: "",
-    electroneum: "0x130c4c29d0643a6442410207b4fD263582b056f6"
+    electroneum: "0xDBdbeD1a1c18da5DCBB6de49B2a2ABb83bf2FA10"
 };
 
 export const Country = { India: "India", UnitedStates: "United States", UnitedKingdom: "United Kingdom", Japan: "Japan", Canada: "Canada", Australia: "Australia", China: "China", Russia: "Russia", Switzerland: "Switzerland", EU: "EU" };
@@ -30,14 +31,14 @@ export interface RecipientErrors { addr?: string; firstName?: string; lastName?:
 export interface Allocation { recipient: string; percentage: number; }
 export interface Will { text: string; stakingInterest: boolean; allocations: Allocation[]; totalPercentage: number; error: string; recipients: RecipientDetails[]; }
 
-
-
 const DeWillBody = () => {
     const [openWill, setWillOpen] = useState(false);
     const [recipientOpen, setRecipientOpen] = useState(false);
     const [mousePosition, setMousePosition] = useState({ x: 0, y: 0 });
     const [hasWill, setHasWill] = useState(false);
     const [walletAddress, setWalletAddress] = useState<string | null>(null);
+    const [walletBalance, setWalletBalance] = useState<string>("-1"); // Wallet balance state
+    const [contractBalance, setContractBalance] = useState<string>("-1"); // Contract balance state
     const WalletToRecipients: Map<string, RecipientDetails[]> = new Map();
 
     const [recipientDetails, setRecipientDetails] = useState<RecipientDetails>({
@@ -54,6 +55,7 @@ const DeWillBody = () => {
     useEffect(() => {
         console.log("entering check will");
         checkExistingWill();
+        updateBalances(); // Fetch balances on mount
     }, []);
 
     const handleMouseMove = (event: React.MouseEvent<HTMLDivElement>) => {
@@ -104,7 +106,6 @@ const DeWillBody = () => {
     const handleAddRecipientClick = () => setRecipientOpen(true);
 
     const handleSaveWill = () => {
-        // setWillDetails(...willDetails, text: );
         const totalPercentage = willDetails.allocations.reduce((sum, alloc) => sum + alloc.percentage, 0);
         if (totalPercentage !== 100) {
             setWillDetails({ ...willDetails, error: "Total allocation percentage must be exactly 100%." });
@@ -174,7 +175,6 @@ const DeWillBody = () => {
             console.log("Signer:", wallet);
 
             const contract = new ethers.Contract(CONTRACT_ADDRESS.electroneum, CONTRACT_ABI, signer);
-            // Format the recipients
             const recipientsFormatted = willDetails.recipients.map(r => ({
                 addr: r.addr,
                 firstName: r.firstName,
@@ -188,16 +188,12 @@ const DeWillBody = () => {
                 percentage: r.percentage
             }));
 
-            // Create the Will struct
             const willFormatted = {
-                text: willDetails.text || "", // Include the text field
+                text: willDetails.text || "",
                 recipients: recipientsFormatted
             };
 
-
-
             console.log("Will Formatted:", JSON.stringify(willFormatted));
-
             console.log("Recipients Formatted:", JSON.stringify(recipientsFormatted));
 
             const tx1 = await contract.addRecipients(willFormatted, { gasLimit: 500000 });
@@ -215,6 +211,7 @@ const DeWillBody = () => {
             WalletToRecipients.set(wallet, willDetails.recipients);
             setHasWill(true);
             setWillOpen(false);
+            updateBalances(); // Update balances after saving will
         } catch (error) {
             console.error("Contract call failed:", error);
             if (error instanceof Error && "reason" in error) {
@@ -242,7 +239,7 @@ const DeWillBody = () => {
             const contract = new ethers.Contract(CONTRACT_ADDRESS.electroneum, CONTRACT_ABI, signer);
             await contract.removeRecipients();
             console.log(await contract.getRecipients());
-
+            updateBalances(); // Update balances after deleting will
         } catch (error) {
             console.error("Delete will failed:", error);
         }
@@ -261,40 +258,137 @@ const DeWillBody = () => {
             console.log("Signer:", wallet);
 
             const contract = new ethers.Contract(CONTRACT_ADDRESS.electroneum, CONTRACT_ABI, signer);
-            const balance: bigint = await provider.getBalance(wallet);
-            await contract.updateBalance(3, ethers.toBigInt(balance));
-            console.log("Get Updated Balance", await contract.getBalance(3));
+            const balance = await provider.getBalance(wallet);
+            const balanceInEth = Number(ethers.formatEther(balance));
 
-        } catch (error) {
+            let gasPrice: bigint | null = (await provider.getFeeData()).gasPrice;
+            if (gasPrice == null) {
+                gasPrice = BigInt(0);
+            } 
+            const gasLimit = 300000n;
+            const gasCost = gasPrice * gasLimit;
+            const gasCostInEth = Number(ethers.formatEther(gasCost));
+            const afterGasBalance = balanceInEth - gasCostInEth;
+
+            if (afterGasBalance <= 0) {
+                alert("Insufficient balance to cover gas fees.");
+                return;
+            }
+
+            const tx = await contract.addBalance(3, {
+                value: ethers.parseEther(afterGasBalance.toFixed(18)),
+                gasLimit: gasLimit,
+            });
+            console.log("Transaction sent:", tx.hash);
+            await tx.wait();
+            console.log("Transaction confirmed!");
+
+            updateBalances(); // Update balances after adding funds
+        } catch (error: any) {
             console.error("Refresh will failed:", error);
+            alert(`Failed to add balance: ${error.message || "Unknown error"}`);
         }
     }
 
-    async function getBalance(): Promise<string> {
+    async function getWalletBalance(): Promise<string> {
         if (!window.ethereum) {
-            alert("MetaMask not installed!");
             return "-1";
         }
         try {
             const provider = new ethers.BrowserProvider(window.ethereum);
             const signer = await provider.getSigner();
             const balance = await provider.getBalance(signer.address);
-            console.log(ethers.formatEther(balance));
             return ethers.formatEther(balance);
         } catch (error) {
-            console.error("Refresh will failed:", error);
+            console.error("Fetch wallet balance failed:", error);
+            return "-1";
         }
-        return "-1";
     }
 
-    const rewardTokens = async (): Promise<any> => {
+    async function getContractBalance(): Promise<string> {
+        if (!window.ethereum) {
+            return "-1";
+        }
+        try {
+            const provider = new ethers.BrowserProvider(window.ethereum);
+            const signer = await provider.getSigner();
+            const contract = new ethers.Contract(CONTRACT_ADDRESS.electroneum, CONTRACT_ABI, signer);
+            const balance = await contract.getBalance(3);
+            return ethers.formatEther(balance);
+        } catch (error) {
+            console.error("Fetch contract balance failed:", error);
+            return "-1";
+        }
+    }
 
-    };
+    async function updateBalances(): Promise<void> {
+        const walletBal = await getWalletBalance();
+        const contractBal = await getContractBalance();
+        setWalletBalance(walletBal);
+        setContractBalance(contractBal);
+    }
+
+    async function withdrawAllFunds(): Promise<void> {
+        if (!window.ethereum) {
+            alert("MetaMask not installed!");
+            return;
+        }
+        try {
+            const provider = new ethers.BrowserProvider(window.ethereum);
+            await provider.send("eth_requestAccounts", []);
+            const signer = await provider.getSigner();
+            const wallet = await signer.getAddress();
+            console.log("Signer:", wallet);
+
+            const contract = new ethers.Contract(CONTRACT_ADDRESS.electroneum, CONTRACT_ABI, signer);
+            
+            const fullBalanceWei = await contract.getBalance(3);
+            if (fullBalanceWei <= 0n) {
+                alert("No funds available to withdraw.");
+                return;
+            }
+
+            const gasPrice = (await provider.getFeeData()).gasPrice || ethers.parseUnits("20", "gwei");
+            const gasLimit = BigInt(50000);
+            const gasCost = gasPrice * gasLimit;
+
+            if (fullBalanceWei <= gasCost) {
+                alert("Insufficient balance to cover gas fees.");
+                return;
+            }
+
+            const amountToWithdraw = fullBalanceWei - gasCost;
+
+            const tx = await contract.withdrawBalance(3, amountToWithdraw, {
+                gasLimit: 50000,
+            });
+            console.log("Withdraw transaction sent:", tx.hash);
+            await tx.wait();
+            console.log("Withdraw transaction confirmed!");
+
+            const newBalance = await getContractBalance();
+            setContractBalance(newBalance); // Update contract balance
+            setWalletBalance(await getWalletBalance()); // Update wallet balance
+            alert(`Successfully withdrew ${ethers.formatEther(amountToWithdraw)} ETH`);
+        } catch (error: any) {
+            console.error("Withdraw all funds failed:", error);
+            alert(`Failed to withdraw funds: ${error.message || "Unknown error"}`);
+        }
+    }
 
     return (
         <Box sx={{ bgcolor: '#000000', backgroundImage: `url(${Devil})`, backgroundPosition: 'right', backgroundRepeat: 'no-repeat', backgroundSize: 'contain', minHeight: '100vh', width: '100vw', m: 0, p: 0, position: 'relative', display: 'flex', alignItems: 'center', justifyContent: 'center', overflow: 'hidden', fontFamily: 'Inter, Roboto, sans-serif' }} onMouseMove={handleMouseMove}>
             <CssBaseline />
             <Box sx={{ position: 'absolute', width: '40px', height: '40px', bgcolor: 'rgba(255, 255, 255, 0.05)', borderRadius: '50%', pointerEvents: 'none', transform: 'translate(-50%, -50%)', left: `${mousePosition.x}px`, top: `${mousePosition.y}px`, boxShadow: '0 0 20px 10px rgba(255, 255, 255, 0.15)', zIndex: 1 }} />
+            {/* Balance Display in Top-Left */}
+            <Box sx={{ position: 'absolute', top: 16, left: 16, color: 'white', zIndex: 2, paddingTop: "100px" }}>
+                <Typography variant="body1" sx={{ fontWeight: 700 }}>
+                    Wallet Balance: {walletBalance} ETN
+                </Typography>
+                <Typography variant="body1" sx={{ fontWeight: 700 }}>
+                    Contract Balance: {contractBalance} ETN
+                </Typography>
+            </Box>
             <Box sx={{ display: 'flex', flexDirection: 'column', alignItems: 'center', paddingRight: "250px", gap: 3, zIndex: 2 }}>
                 {!hasWill ? (
                     <Fab variant="extended" onClick={() => setWillOpen(true)} sx={{ bgcolor: 'transparent', color: 'white', border: '1px solid white', fontWeight: 'bold', fontSize: '1.1rem', px: 3, py: 1, textTransform: 'uppercase', '&:hover': { bgcolor: 'grey.800', borderColor: 'white' }, transition: 'all 0.3s ease' }}>
@@ -302,7 +396,6 @@ const DeWillBody = () => {
                         Create Will
                     </Fab>
                 ) : (
-
                     <Box sx={{ bgcolor: '#1a1a1a', p: 4, borderRadius: 2, border: '1px solid rgba(255, 255, 255, 0.2)', boxShadow: '0 0 20px rgba(255, 255, 255, 0.1)', maxWidth: '500px', color: 'white' }}>
                         <Box display="flex" justifyContent="space-between" alignItems="center">
                             <Typography variant="h5" sx={{ fontWeight: 700, textTransform: 'uppercase', mb: 2, textAlign: 'center' }}>Your Will</Typography>
@@ -310,9 +403,11 @@ const DeWillBody = () => {
                                 <IconButton onClick={refreshWill} color="primary">
                                     <RefreshIcon />
                                 </IconButton>
-                                <IconButton onClick={rewardTokens} href='/redeem'>
-                                    {/* <MailIcon fontSize="large" color="primary" /> */}
+                                <IconButton href='/send'>
                                     <RedeemIcon color="primary" />
+                                </IconButton>
+                                <IconButton onClick={withdrawAllFunds} color="primary">
+                                    <AccountBalanceWalletIcon />
                                 </IconButton>
                             </Box>
                         </Box>

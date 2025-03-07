@@ -16,6 +16,7 @@ import {
 } from "@mui/material";
 import { CONTRACT_ADDRESS, Will, Token, RecipientDetails } from "../DeWill/DeWillBody";
 import CONTRACT_ABI from '../../assets/abi.json';
+import emailjs from '@emailjs/browser';
 
 interface FormData {
     recipient: string;
@@ -40,10 +41,10 @@ enum Cause {
 }
 
 const generateAIEmail = (recipient: string, cause: string, percentage: string, token: string): string => {
-    return `Dear ${recipient},\n\nI hope this message finds you well. I’m pleased to inform you that I’m transferring ${percentage}% of my ${token} as a ${cause}. This transfer is a special gesture, and I hope it brings you joy.\n\nBest regards,\n[Your Name]`;
+    return `Dear ${recipient},\n\nI hope this message finds you well. I’m pleased to inform you that I’m transferring ${token} as a ${cause}. \n please go to http://localhost:5173/redeem to redeem the rewards.. \n This transfer is a special gesture, and I hope it brings you joy.\n\nBest regards,\n Ned Stark `;
 };
 
-const RedeemBody = () => {
+const SendBody = () => {
     const [mousePosition, setMousePosition] = useState<{ x: number; y: number }>({ x: 0, y: 0 });
     const [balance, setBalance] = useState<string>("-1");
     const [walletAddress, setWalletAddress] = useState<string | null>(null);
@@ -114,14 +115,12 @@ const RedeemBody = () => {
             const provider = new ethers.BrowserProvider(window.ethereum);
             const signer = await provider.getSigner();
             const balance = await provider.getBalance(signer.address);
-            console.log(ethers.formatEther(balance));
             return ethers.formatEther(balance);
         } catch (error) {
             console.error("Refresh will failed:", error);
+            return "-1";
         }
-        return "-1";
     }
-
 
     const checkExistingWill = async () => {
         if (!window.ethereum) return;
@@ -133,23 +132,20 @@ const RedeemBody = () => {
             setWalletAddress(address);
             const contract = new ethers.Contract(CONTRACT_ADDRESS.electroneum, CONTRACT_ABI, signer);
             const recipients = await contract.getRecipients();
-            console.log("Hi..");
             const will: Will = await contract.getWill();
-
-            const formattedWill = JSON.parse(JSON.stringify(will, (key, value) =>
-                typeof value === "bigint" ? value.toString() : value, 2));
-
-            console.log(formattedWill);
-            console.log(will.totalPercentage);
-            console.log(will.text);
-            console.log("Get Will", await contract.getWill());
 
             if (recipients && recipients.length > 0) {
                 const formattedRecipients: RecipientDetails[] = recipients.map((r: any) => ({
-                    addr: r.addr, firstName: r.firstName, lastName: r.lastName, primaryEmail: r.primaryEmail, secondaryEmail: r.secondaryEmail || "",
+                    addr: r.addr,
+                    firstName: r.firstName,
+                    lastName: r.lastName,
+                    primaryEmail: r.primaryEmail,
+                    secondaryEmail: r.secondaryEmail || "",
                     token: ["Sonic", "ETH", "Near", "Electroneum"][r.currency] || "Electroneum",
                     country: ["India", "United States", "United Kingdom", "Japan", "Canada", "Australia", "China", "Russia", "Switzerland", "EU"][r.country] || "India",
-                    age: Number(r.age), gender: ["Male", "Female", "Others"][r.gender] || "Male", percentage: Number(r.percentage)
+                    age: Number(r.age),
+                    gender: ["Male", "Female", "Others"][r.gender] || "Male",
+                    percentage: Number(r.percentage)
                 }));
                 setWillDetails({
                     ...willDetails,
@@ -165,11 +161,54 @@ const RedeemBody = () => {
         }
     };
 
-    const handleSubmit = (event: React.FormEvent<HTMLFormElement>) => {
+    const handleSubmit = async (event: React.FormEvent<HTMLFormElement>) => {
         event.preventDefault();
         if (validateForm()) {
-            console.log("Form submitted:", formData);
-            setFormData({ recipient: "", percentage: "", token: Token.Electroneum, email: "", cause: "" });
+            try {
+                const selectedRecipient = willDetails.recipients.find(
+                    r => `${r.firstName} ${r.lastName}` === formData.recipient
+                );
+
+                if (!selectedRecipient?.primaryEmail) {
+                    setErrors({ ...errors, recipient: "No email found for this recipient" });
+                    return;
+                }
+
+                const serviceID = 'dewill';
+                const templateID = 'dewill_template';
+                const publicKey = 'utY0W0EPIytoPwfRZ';
+
+                const emailParams = {
+                    to_email: selectedRecipient.primaryEmail,
+                    to_name: formData.recipient,
+                    message: formData.email || generateAIEmail(
+                        formData.recipient,
+                        formData.cause,
+                        formData.percentage,
+                        formData.token
+                    ),
+                    from_name: "Ned Stark",
+                };
+
+                const response = await emailjs.send(
+                    serviceID,
+                    templateID,
+                    emailParams,
+                    publicKey
+                );
+
+                console.log("Email sent successfully:", response);
+                setFormData({
+                    recipient: "",
+                    percentage: "",
+                    token: Token.Electroneum,
+                    email: "",
+                    cause: ""
+                });
+            } catch (error) {
+                console.error("Email sending failed:", error);
+                setErrors({ ...errors, email: "Failed to send email" });
+            }
         } else {
             console.error("Form validation failed:", errors);
         }
@@ -237,7 +276,6 @@ const RedeemBody = () => {
                         py: 2,
                     }}
                 >
-                    {/* Balance at top right */}
                     <Typography
                         variant="body1"
                         sx={{
@@ -455,4 +493,4 @@ const RedeemBody = () => {
     );
 };
 
-export default RedeemBody;
+export default SendBody;
