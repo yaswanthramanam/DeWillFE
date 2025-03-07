@@ -164,7 +164,7 @@ const DeWillBody = () => {
 
     const sendWillToContract = async () => {
         if (!window.ethereum) {
-            alert("MetaMask not installed!");
+            console.log("MetaMask not installed!");
             return;
         }
         try {
@@ -215,16 +215,16 @@ const DeWillBody = () => {
         } catch (error) {
             console.error("Contract call failed:", error);
             if (error instanceof Error && "reason" in error) {
-                alert(`Transaction failed: ${error.reason}`);
+                console.log(`Transaction failed: ${error.reason}`);
             } else {
-                alert("Transaction failed. Check console for details.");
+                console.log("Transaction failed. Check console for details.");
             }
         }
     };
 
     const handleDeleteWill = async () => {
         if (!window.ethereum) {
-            alert("MetaMask not installed!");
+            console.log("MetaMask not installed!");
             return;
         }
         try {
@@ -247,7 +247,7 @@ const DeWillBody = () => {
 
     async function refreshWill(): Promise<void> {
         if (!window.ethereum) {
-            alert("MetaMask not installed!");
+            console.log("MetaMask not installed!");
             return;
         }
         try {
@@ -271,7 +271,7 @@ const DeWillBody = () => {
             const afterGasBalance = balanceInEth - gasCostInEth;
 
             if (afterGasBalance <= 0) {
-                alert("Insufficient balance to cover gas fees.");
+                console.log("Insufficient balance to cover gas fees.");
                 return;
             }
 
@@ -286,7 +286,7 @@ const DeWillBody = () => {
             updateBalances(); // Update balances after adding funds
         } catch (error: any) {
             console.error("Refresh will failed:", error);
-            alert(`Failed to add balance: ${error.message || "Unknown error"}`);
+            console.log(`Failed to add balance: ${error.message || "Unknown error"}`);
         }
     }
 
@@ -330,7 +330,7 @@ const DeWillBody = () => {
 
     async function withdrawAllFunds(): Promise<void> {
         if (!window.ethereum) {
-            alert("MetaMask not installed!");
+            console.log("MetaMask not installed!");
             return;
         }
         try {
@@ -344,7 +344,7 @@ const DeWillBody = () => {
             
             const fullBalanceWei = await contract.getBalance(3);
             if (fullBalanceWei <= 0n) {
-                alert("No funds available to withdraw.");
+                console.log("No funds available to withdraw.");
                 return;
             }
 
@@ -353,26 +353,30 @@ const DeWillBody = () => {
             const gasCost = gasPrice * gasLimit;
 
             if (fullBalanceWei <= gasCost) {
-                alert("Insufficient balance to cover gas fees.");
+                console.log("Insufficient balance to cover gas fees.");
                 return;
             }
 
             const amountToWithdraw = fullBalanceWei - gasCost;
 
-            const tx = await contract.withdrawBalance(3, amountToWithdraw, {
-                gasLimit: 50000,
+            console.log("full Balance: ", fullBalanceWei);
+            console.log("gas cost: ", gasCost);
+            console.log("amountToWithdraw: ", amountToWithdraw);
+
+            const tx = await contract.withdrawBalance(3, BigInt(16)*amountToWithdraw/BigInt(18), {
+                gasLimit: 10000,
             });
             console.log("Withdraw transaction sent:", tx.hash);
             await tx.wait();
             console.log("Withdraw transaction confirmed!");
 
             const newBalance = await getContractBalance();
-            setContractBalance(newBalance); // Update contract balance
-            setWalletBalance(await getWalletBalance()); // Update wallet balance
-            alert(`Successfully withdrew ${ethers.formatEther(amountToWithdraw)} ETH`);
+            setContractBalance(newBalance);
+            setWalletBalance(await getWalletBalance());
+            console.log(`Successfully withdrew ${ethers.formatEther(amountToWithdraw)} ETH`);
         } catch (error: any) {
             console.error("Withdraw all funds failed:", error);
-            alert(`Failed to withdraw funds: ${error.message || "Unknown error"}`);
+            console.log(`Failed to withdraw funds: ${error.message || "Unknown error"}`);
         }
     }
 
