@@ -18,14 +18,6 @@ import { CONTRACT_ADDRESS, Will, Token, RecipientDetails } from "../DeWill/DeWil
 import CONTRACT_ABI from '../../assets/abi.json';
 import emailjs from '@emailjs/browser';
 
-interface FormData {
-    recipient: string;
-    percentage: string;
-    token: string;
-    email: string;
-    cause: string;
-}
-
 interface Errors {
     recipient?: string;
     percentage?: string;
@@ -40,8 +32,8 @@ enum Cause {
     OccasionalTransfer = "Occasional Transfer",
 }
 
-const generateAIEmail = (recipient: string, cause: string, percentage: string, token: string): string => {
-    return `Dear ${recipient},\n\nI hope this message finds you well. I’m pleased to inform you that I’m transferring ${token} as a ${cause}. \n please go to http://localhost:5173/redeem to redeem the rewards.. \n This transfer is a special gesture, and I hope it brings you joy.\n\nBest regards,\n Ned Stark `;
+const generateAIEmail = (recipient: string, cause: string, percentage: string, token: string, code: string): string => {
+    return `Dear ${recipient},\n\nI hope this message finds you well. I’m pleased to inform you that I’m transferring ${percentage}% of ${token} as a ${cause}. To redeem your funds, please go to http://localhost:5173/redeem and use the following code: ${code}. This transfer is a special gesture, and I hope it brings you joy.\n\nBest regards,\nNed Stark`;
 };
 
 const SendBody = () => {
@@ -49,17 +41,19 @@ const SendBody = () => {
     const [balance, setBalance] = useState<string>("-1");
     const [walletAddress, setWalletAddress] = useState<string | null>(null);
     const [willDetails, setWillDetails] = useState<Will>({
-        text: "", stakingInterest: false, allocations: [], totalPercentage: 0, error: "", recipients: []
+        text: "",
+        stakingInterest: false,
+        allocations: [],
+        totalPercentage: 0,
+        error: "",
+        recipients: [],
     });
     const [hasWill, setHasWill] = useState(false);
-
-    const [formData, setFormData] = useState<FormData>({
-        recipient: "",
-        percentage: "",
-        token: Token.Electroneum,
-        email: "",
-        cause: "",
-    });
+    const [recipient, setRecipient] = useState<string>("");
+    const [percentage, setPercentage] = useState<string>("");
+    const [token, setToken] = useState<string>(Token.Electroneum);
+    const [email, setEmail] = useState<string>("");
+    const [cause, setCause] = useState<string>("");
     const [errors, setErrors] = useState<Errors>({});
 
     useEffect(() => {
@@ -82,26 +76,33 @@ const SendBody = () => {
         setMousePosition({ x: event.clientX, y: event.clientY });
     };
 
-    const handleChange = (field: keyof FormData) => (
+    const handleChange = (
+        field: "recipient" | "percentage" | "token" | "email" | "cause"
+    ) => (
         event: SelectChangeEvent<string> | React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>
     ) => {
-        setFormData({ ...formData, [field]: event.target.value });
+        const value = event.target.value;
+        if (field === "recipient") setRecipient(value);
+        else if (field === "percentage") setPercentage(value);
+        else if (field === "token") setToken(value);
+        else if (field === "email") setEmail(value);
+        else if (field === "cause") setCause(value);
         setErrors({ ...errors, [field]: "" });
     };
 
     const validateForm = (): boolean => {
         const newErrors: Errors = {};
-        if (!formData.recipient) newErrors.recipient = "Recipient is required";
-        if (!formData.percentage) {
+        if (!recipient) newErrors.recipient = "Recipient is required";
+        if (!percentage) {
             newErrors.percentage = "Percentage is required";
         } else {
-            const percent = Number(formData.percentage);
+            const percent = Number(percentage);
             if (percent < 1 || percent > 100) {
                 newErrors.percentage = "Percentage must be between 1 and 100";
             }
         }
-        if (!formData.token) newErrors.token = "Token is required";
-        if (!formData.cause) newErrors.cause = "Cause of transfer is required";
+        if (!token) newErrors.token = "Token is required";
+        if (!cause) newErrors.cause = "Cause of transfer is required";
         setErrors(newErrors);
         return Object.keys(newErrors).length === 0;
     };
@@ -145,14 +146,14 @@ const SendBody = () => {
                     country: ["India", "United States", "United Kingdom", "Japan", "Canada", "Australia", "China", "Russia", "Switzerland", "EU"][r.country] || "India",
                     age: Number(r.age),
                     gender: ["Male", "Female", "Others"][r.gender] || "Male",
-                    percentage: Number(r.percentage)
+                    percentage: Number(r.percentage),
                 }));
                 setWillDetails({
                     ...willDetails,
                     recipients: formattedRecipients,
                     allocations: formattedRecipients.map(r => ({ recipient: r.addr, percentage: r.percentage })),
                     stakingInterest: await contract.getStaking(),
-                    text: will.text
+                    text: will.text,
                 });
                 setHasWill(true);
             }
@@ -163,72 +164,94 @@ const SendBody = () => {
 
     const handleSubmit = async (event: React.FormEvent<HTMLFormElement>) => {
         event.preventDefault();
-        if (validateForm()) {
-            try {
-                const selectedRecipient = willDetails.recipients.find(
-                    r => `${r.firstName} ${r.lastName}` === formData.recipient
-                );
-
-                if (!selectedRecipient?.primaryEmail) {
-                    setErrors({ ...errors, recipient: "No email found for this recipient" });
-                    return;
-                }
-
-                const serviceID = 'dewill';
-                const templateID = 'dewill_template';
-                const publicKey = 'utY0W0EPIytoPwfRZ';
-
-                const emailParams = {
-                    to_email: selectedRecipient.primaryEmail,
-                    to_name: formData.recipient,
-                    message: formData.email || generateAIEmail(
-                        formData.recipient,
-                        formData.cause,
-                        formData.percentage,
-                        formData.token
-                    ),
-                    from_name: "Ned Stark",
-                };
-
-                const response = await emailjs.send(
-                    serviceID,
-                    templateID,
-                    emailParams,
-                    publicKey
-                );
-
-                console.log("Email sent successfully:", response);
-                setFormData({
-                    recipient: "",
-                    percentage: "",
-                    token: Token.Electroneum,
-                    email: "",
-                    cause: ""
-                });
-            } catch (error) {
-                console.error("Email sending failed:", error);
-                setErrors({ ...errors, email: "Failed to send email" });
-            }
-        } else {
+        if (!validateForm()) {
             console.error("Form validation failed:", errors);
+            return;
+        }
+        if (!window.ethereum) {
+            alert("MetaMask not installed!");
+            return;
+        }
+
+        try {
+            const provider = new ethers.BrowserProvider(window.ethereum);
+            await provider.send("eth_requestAccounts", []);
+            const signer = await provider.getSigner();
+            const wallet = await signer.getAddress();
+            console.log("Signer:", wallet);
+
+            const contract = new ethers.Contract(CONTRACT_ADDRESS.electroneum, CONTRACT_ABI, signer);
+            const selectedRecipient = willDetails.recipients.find(
+                r => `${r.firstName} ${r.lastName}` === recipient
+            );
+
+            if (!selectedRecipient?.primaryEmail) {
+                setErrors({ ...errors, recipient: "No email found for this recipient" });
+                return;
+            }
+
+            const fiveYearsInSeconds = 5 * 365 * 24 * 60 * 60;
+            const timestamp = Math.floor(Date.now() / 1000) + fiveYearsInSeconds;
+            const redemptionCode = `RECIPIENT_${selectedRecipient.addr.slice(0, 6)}`;
+            const txRequest = await contract.addRequest(
+                selectedRecipient.primaryEmail,
+                redemptionCode,
+                Number(percentage),
+                cause,
+                timestamp,
+                { gasLimit: 100000 }
+            );
+            console.log(`Request Tx Hash for ${selectedRecipient.addr}:`, txRequest.hash);
+            await txRequest.wait();
+            console.log(`Request confirmed for ${selectedRecipient.addr}!`);
+            const serviceID = 'dewill';
+            const templateID = 'dewill_template';
+            const publicKey = 'utY0W0EPIytoPwfRZ';
+
+            const emailBody = email
+                ? `${email}\n\nTo redeem your funds, use this code: ${redemptionCode} at http://localhost:5173/redeem`
+                : generateAIEmail(recipient, cause, percentage, token, redemptionCode);
+
+            const emailParams = {
+                to_email: selectedRecipient.primaryEmail,
+                to_name: recipient,
+                message: emailBody,
+                from_name: "Ned Stark",
+            };
+
+            const response = await emailjs.send(serviceID, templateID, emailParams, publicKey);
+            console.log("Email sent successfully:", response);
+            setRecipient("");
+            setPercentage("");
+            setToken(Token.Electroneum);
+            setEmail("");
+            setCause("");
+            setErrors({});
+        } catch (error) {
+            console.error("Email sending or request addition failed:", error);
+            if (error instanceof Error && "reason" in error) {
+                console.log(`Transaction failed: ${error.reason}`);
+            } else {
+                console.log("Transaction failed. Check console for details.");
+            }
+            setErrors({ ...errors, email: "Failed to send email or add request" });
         }
     };
 
     const handleGenerateAIEmail = () => {
-        if (!formData.recipient || !formData.percentage || !formData.token || !formData.cause) {
+        if (!recipient || !percentage || !token || !cause) {
             setErrors({
                 ...errors,
                 email: "Please fill all fields before generating an email",
             });
             return;
         }
-        const aiEmail = generateAIEmail(
-            formData.recipient,
-            formData.cause,
-            formData.percentage,
-            formData.token
+        const selectedRecipient = willDetails.recipients.find(
+            r => `${r.firstName} ${r.lastName}` === recipient
         );
-        setFormData({ ...formData, email: aiEmail });
+        const redemptionCode = selectedRecipient ? `RECIPIENT_${selectedRecipient.addr.slice(0, 6)}` : "UNKNOWN_CODE";
+        const aiEmail = generateAIEmail(recipient, cause, percentage, token, redemptionCode);
+        setEmail(aiEmail);
         setErrors({ ...errors, email: "" });
     };
 
@@ -325,7 +348,7 @@ const SendBody = () => {
                                     <FormControl fullWidth error={!!errors.recipient}>
                                         <InputLabel sx={{ color: "white" }}>Recipient</InputLabel>
                                         <Select
-                                            value={formData.recipient}
+                                            value={recipient}
                                             onChange={handleChange("recipient")}
                                             sx={{
                                                 color: "white",
@@ -357,11 +380,13 @@ const SendBody = () => {
                                         fullWidth
                                         label="Percentage"
                                         type="number"
-                                        value={formData.percentage}
+                                        value={percentage}
                                         onChange={handleChange("percentage")}
-                                        InputProps={{
-                                            endAdornment: <span style={{ color: "white" }}>%</span>,
-                                            sx: { color: "white", bgcolor: "rgba(255, 255, 255, 0.1)" },
+                                        slotProps={{
+                                            input: {
+                                                endAdornment: <span style={{ color: "white" }}>%</span>,
+                                                sx: { color: "white", bgcolor: "rgba(255, 255, 255, 0.1)" },
+                                            },
                                         }}
                                         sx={{ label: { color: "white" } }}
                                         error={!!errors.percentage}
@@ -373,7 +398,7 @@ const SendBody = () => {
                                     <FormControl fullWidth error={!!errors.token}>
                                         <InputLabel sx={{ color: "white" }}>Token</InputLabel>
                                         <Select
-                                            value={formData.token}
+                                            value={token}
                                             onChange={handleChange("token")}
                                             sx={{
                                                 color: "white",
@@ -404,7 +429,7 @@ const SendBody = () => {
                                     <FormControl fullWidth error={!!errors.cause}>
                                         <InputLabel sx={{ color: "white" }}>Cause of Transfer</InputLabel>
                                         <Select
-                                            value={formData.cause}
+                                            value={cause}
                                             onChange={handleChange("cause")}
                                             sx={{
                                                 color: "white",
@@ -437,9 +462,13 @@ const SendBody = () => {
                                         label="Email Body"
                                         multiline
                                         rows={3}
-                                        value={formData.email}
+                                        value={email}
                                         onChange={handleChange("email")}
-                                        InputProps={{ sx: { color: "white", bgcolor: "rgba(255, 255, 255, 0.1)" } }}
+                                        slotProps={{
+                                            input: {
+                                                sx: { color: "white", bgcolor: "rgba(255, 255, 255, 0.1)" },
+                                            },
+                                        }}
                                         sx={{ label: { color: "white" } }}
                                         error={!!errors.email}
                                         helperText={errors.email}

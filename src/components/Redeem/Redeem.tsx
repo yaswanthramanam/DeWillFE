@@ -1,9 +1,9 @@
 import React, { ReactNode } from "react";
 import ResponsiveAppBar from "../AppBar/ResponsiveAppBar";
-import RedeemBody from './SendBody';
+import RedeemBody from './RedeemBody';
 import CssBaseline from "@mui/material/CssBaseline/CssBaseline";
 
-const Send= ():ReactNode | Promise<ReactNode> => {
+const Redeem= ():ReactNode | Promise<ReactNode> => {
     return (
         <div>
             <CssBaseline />
@@ -13,4 +13,4 @@ const Send= ():ReactNode | Promise<ReactNode> => {
     );
 }
 
-export default Send;
+export default Redeem;

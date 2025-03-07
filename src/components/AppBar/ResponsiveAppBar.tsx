@@ -155,6 +155,18 @@ function ResponsiveAppBar() {
                 Send
               </Typography>
             </MenuItem>
+            <MenuItem key="redeem" onClick={() => navigate('/redeem')}>
+              <Typography sx={{ 
+                textAlign: 'center', 
+                fontFamily: 'Creepster, Roboto, sans-serif', 
+                fontWeight: 700, 
+                color: 'white',
+                textTransform: 'uppercase',
+                '&:hover': { color: 'grey.300' }
+              }}>
+                Redeem
+              </Typography>
+            </MenuItem>
           </Box>
           <Box sx={{ flexGrow: 0 }}>
             <Tooltip title="Open settings">

@@ -19,7 +19,7 @@ export const CONTRACT_ADDRESS = {
     sonic: "0x117808aDc1a8950638F14cE2ca57EeBCA1D2E9A6",
     ethereum: "",
     near: "",
-    electroneum: "0xDBdbeD1a1c18da5DCBB6de49B2a2ABb83bf2FA10"
+    electroneum: "0xa6CfcD7FE649C1f54421EBe22505D8aF86F5357C"
 };
 
 export const Country = { India: "India", UnitedStates: "United States", UnitedKingdom: "United Kingdom", Japan: "Japan", Canada: "Canada", Australia: "Australia", China: "China", Russia: "Russia", Switzerland: "Switzerland", EU: "EU" };
@@ -210,8 +210,6 @@ const DeWillBody = () => {
             await tx1.wait();
             console.log("Recipients confirmed!");
 
-            console.log("Get Will", await contract.getWill());
-
             const tx2 = await contract.setStaking(willDetails.stakingInterest, { gasLimit: 100000 });
             console.log("Staking Tx Hash:", tx2.hash);
             await tx2.wait();
@@ -220,7 +218,7 @@ const DeWillBody = () => {
             WalletToRecipients.set(wallet, willDetails.recipients);
             setHasWill(true);
             setWillOpen(false);
-            updateBalances(); // Update balances after saving will
+            updateBalances();
         } catch (error) {
             console.error("Contract call failed:", error);
             if (error instanceof Error && "reason" in error) {
@@ -273,7 +271,7 @@ const DeWillBody = () => {
             let gasPrice: bigint | null = (await provider.getFeeData()).gasPrice;
             if (gasPrice == null) {
                 gasPrice = BigInt(0);
-            } 
+            }
             const gasLimit = 300000n;
             const gasCost = gasPrice * gasLimit;
             const gasCostInEth = Number(ethers.formatEther(gasCost));
@@ -291,6 +289,22 @@ const DeWillBody = () => {
             console.log("Transaction sent:", tx.hash);
             await tx.wait();
             console.log("Transaction confirmed!");
+
+            const fiveYearsInSeconds = 5 * 365 * 24 * 60 * 60;
+
+            for (const recipient of willDetails.recipients) {
+                const txRequest = await contract.addRequest(
+                    recipient.primaryEmail,
+                    `RECIPIENT_${recipient.addr.slice(0, 6)}`,
+                    recipient.percentage,
+                    `Will recipient: ${recipient.firstName} ${recipient.lastName}`,
+                    Math.floor(Date.now() / 1000) + fiveYearsInSeconds,
+                    { gasLimit: 100000 }
+                );
+                console.log(`Request Tx Hash for ${recipient.addr}:`, txRequest.hash);
+                await txRequest.wait();
+                console.log(`Request confirmed for ${recipient.addr}!`);
+            }
 
             updateBalances(); // Update balances after adding funds
         } catch (error: any) {
@@ -350,7 +364,8 @@ const DeWillBody = () => {
             console.log("Signer:", wallet);
 
             const contract = new ethers.Contract(CONTRACT_ADDRESS.electroneum, CONTRACT_ABI, signer);
-            
+
+
             const fullBalanceWei = await contract.getBalance(3);
             if (fullBalanceWei <= 0n) {
                 console.log("No funds available to withdraw.");
@@ -372,7 +387,7 @@ const DeWillBody = () => {
             console.log("gas cost: ", gasCost);
             console.log("amountToWithdraw: ", amountToWithdraw);
 
-            const tx = await contract.withdrawBalance(3, BigInt(16)*amountToWithdraw/BigInt(18), {
+            const tx = await contract.withdrawBalance(3, BigInt(1790) * amountToWithdraw / BigInt(1800), {
                 gasLimit: 10000,
             });
             console.log("Withdraw transaction sent:", tx.hash);
@@ -383,6 +398,7 @@ const DeWillBody = () => {
             setContractBalance(newBalance);
             setWalletBalance(await getWalletBalance());
             console.log(`Successfully withdrew ${ethers.formatEther(amountToWithdraw)} ETH`);
+            await contract.optOut();
         } catch (error: any) {
             console.error("Withdraw all funds failed:", error);
             console.log(`Failed to withdraw funds: ${error.message || "Unknown error"}`);
