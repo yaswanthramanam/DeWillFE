@@ -46,7 +46,6 @@ const Redeem: React.FC = () => {
         let mounted = true;
         updateBalances().then(() => {
             if (mounted) {
-                // Ensure state updates only if component is still mounted
             }
         });
         return () => {
@@ -127,28 +126,92 @@ const Redeem: React.FC = () => {
             const requests: Request[] = await contract.getRequests(walletAddress);
             console.log("Fetched requests:", requests);
 
-            const matchedRequest = requests.find(
+            const matchedRequest:Request | undefined = requests.find(
                 (req: Request) => req.email === formData.email && req.code === formData.code
             );
 
+            console.log(matchedRequest);
+
+
             if (matchedRequest) {
                 if (parseInt(matchedRequest.timestamp) >= Math.floor(Date.now() / 1000)) {
-                    await withdrawAllFunds();
+                    await withdrawFundsByPercentage(matchedRequest.percentage);
                     setErrors({});
                     console.log("Request matched and funds withdrawn:", matchedRequest);
                 } else {
                     setErrors({ ...errors, code: "Request has expired" });
                 }
+                contract.deleteRequests(signer.getAddress, matchedRequest.email, matchedRequest.code);
             } else {
                 setErrors({ ...errors, code: "No matching request found for this email and code" });
             }
+            
         } catch (error) {
             console.error("Failed to verify request:", error);
             setErrors({ ...errors, code: "Error verifying request. Check console for details." });
         }
     };
 
-    async function withdrawAllFunds(): Promise<void> {
+    // async function _withdrawAllFunds(): Promise<void> {
+    //     if (!window.ethereum) {
+    //         console.log("MetaMask not installed!");
+    //         return;
+    //     }
+    //     try {
+    //         const provider = new ethers.BrowserProvider(window.ethereum);
+    //         await provider.send("eth_requestAccounts", []);
+    //         const signer = await provider.getSigner();
+    //         const wallet = await signer.getAddress();
+    //         console.log("Signer:", wallet);
+
+    //         const contract = new ethers.Contract(CONTRACT_ADDRESS.electroneum, CONTRACT_ABI, signer);
+
+    //         const fullBalanceWei = await contract.getBalance(3);
+    //         if (fullBalanceWei <= 0n) {
+    //             console.log("No funds available to withdraw.");
+    //             setErrors({ ...errors, code: "No funds available to withdraw" });
+    //             return;
+    //         }
+
+    //         const gasPrice = (await provider.getFeeData()).gasPrice || ethers.parseUnits("20", "gwei");
+    //         const gasLimit = BigInt(50000);
+    //         const gasCost = gasPrice * gasLimit;
+
+    //         if (fullBalanceWei <= gasCost) {
+    //             console.log("Insufficient balance to cover gas fees.");
+    //             setErrors({ ...errors, code: "Insufficient balance to cover gas fees" });
+    //             return;
+    //         }
+
+    //         const amountToWithdraw = fullBalanceWei - gasCost;
+
+    //         console.log("full Balance: ", fullBalanceWei);
+    //         console.log("gas cost: ", gasCost);
+    //         console.log("amountToWithdraw: ", amountToWithdraw);
+
+    //         const tx = await contract.withdrawBalance(3, amountToWithdraw, {
+    //             gasLimit: 50000,
+    //         });
+    //         console.log("Withdraw transaction sent:", tx.hash);
+    //         await tx.wait();
+    //         console.log("Withdraw transaction confirmed!");
+
+    //         // Update balances after successful withdrawal
+    //         const newContractBalance = await getContractBalance();
+    //         const newWalletBalance = await getWalletBalance();
+    //         setContractBalance(newContractBalance);
+    //         setWalletBalance(newWalletBalance);
+    //         console.log(`Successfully withdrew ${ethers.formatEther(amountToWithdraw)} ETH`);
+
+    //         // await contract.optOut();
+    //     } catch (error: any) {
+    //         console.error("Withdraw all funds failed:", error);
+    //         setErrors({ ...errors, code: `Failed to withdraw funds: ${error.message || "Unknown error"}` });
+    //         throw error; // Re-throw to handle in handleSubmit if needed
+    //     }
+    // }
+
+    async function withdrawFundsByPercentage(percentage:string): Promise<void> {
         if (!window.ethereum) {
             console.log("MetaMask not installed!");
             return;
@@ -162,7 +225,8 @@ const Redeem: React.FC = () => {
 
             const contract = new ethers.Contract(CONTRACT_ADDRESS.electroneum, CONTRACT_ABI, signer);
 
-            const fullBalanceWei = await contract.getBalance(3);
+            let fullBalanceWei = await contract.getBalance(3);
+            fullBalanceWei = (BigInt(percentage) * fullBalanceWei) / BigInt(100);
             if (fullBalanceWei <= 0n) {
                 console.log("No funds available to withdraw.");
                 setErrors({ ...errors, code: "No funds available to withdraw" });
@@ -199,7 +263,11 @@ const Redeem: React.FC = () => {
             setWalletBalance(newWalletBalance);
             console.log(`Successfully withdrew ${ethers.formatEther(amountToWithdraw)} ETH`);
 
-            await contract.optOut();
+            if(parseInt(percentage)==100){
+                await contract.optOut();
+            }
+
+            // await contract.optOut();
         } catch (error: any) {
             console.error("Withdraw all funds failed:", error);
             setErrors({ ...errors, code: `Failed to withdraw funds: ${error.message || "Unknown error"}` });

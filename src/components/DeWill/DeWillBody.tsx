@@ -18,7 +18,7 @@ export const CONTRACT_ADDRESS = {
     sonic: "0x117808aDc1a8950638F14cE2ca57EeBCA1D2E9A6",
     ethereum: "",
     near: "",
-    electroneum: "0xa6CfcD7FE649C1f54421EBe22505D8aF86F5357C"
+    electroneum: "0xA3e276167014ce83a32eB0FF5715A8e9054753d3"
 };
 
 export const Country = { India: "India", UnitedStates: "United States", UnitedKingdom: "United Kingdom", Japan: "Japan", Canada: "Canada", Australia: "Australia", China: "China", Russia: "Russia", Switzerland: "Switzerland", EU: "EU" };
@@ -35,8 +35,8 @@ const DeWillBody = () => {
     const [recipientOpen, setRecipientOpen] = useState(false);
     const [mousePosition, setMousePosition] = useState({ x: 0, y: 0 });
     const [hasWill, setHasWill] = useState(false);
-    const [walletBalance, setWalletBalance] = useState<string>("-1"); // Wallet balance state
-    const [contractBalance, setContractBalance] = useState<string>("-1"); // Contract balance state
+    const [walletBalance, setWalletBalance] = useState<string>("-1");
+    const [contractBalance, setContractBalance] = useState<string>("-1");
     const WalletToRecipients: Map<string, RecipientDetails[]> = new Map();
 
     const [recipientDetails, setRecipientDetails] = useState<RecipientDetails>({
@@ -393,6 +393,7 @@ const DeWillBody = () => {
             setWalletBalance(await getWalletBalance());
             console.log(`Successfully withdrew ${ethers.formatEther(amountToWithdraw)} ETH`);
             await contract.optOut();
+            handleDeleteWill();
         } catch (error: any) {
             console.error("Withdraw all funds failed:", error);
             console.log(`Failed to withdraw funds: ${error.message || "Unknown error"}`);

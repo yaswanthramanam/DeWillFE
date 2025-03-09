@@ -198,7 +198,6 @@ const SendBody = () => {
                 return;
             }
 
-            // Convert timestamp to blockchain format (seconds)
             const blockchainTimestamp = Math.floor(new Date(timestamp).getTime() / 1000);
             const redemptionCode = `RECIPIENT_${selectedRecipient.addr.slice(0, 6)}`;
             const txRequest = await contract.addRequest(
